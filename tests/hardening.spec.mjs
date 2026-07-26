@@ -113,9 +113,8 @@ test.describe('Phase 6 — hardening (adversarial-review fixes)', () => {
     // add exits.csv from inside the dashboard — must NOT wipe employee_master
     await page.click('#btn-add');
     await page.setInputFiles('#file-input', FIX('exits.csv'));
-    await page.keyboard.press('Escape');
-    const loaded = await page.evaluate(() => [...App.state.datasets.keys()].sort());
-    expect(loaded).toContain('employee_master');
-    expect(loaded).toContain('exits');
+    // the second load is async (FileReader); wait for it to land before asserting
+    await expect.poll(() => page.evaluate(() => [...App.state.datasets.keys()].sort()))
+      .toEqual(['employee_master', 'exits']);
   });
 });
