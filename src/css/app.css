@@ -437,6 +437,53 @@ main { padding: 14px 16px 40px; min-height: 55vh; }
 .modal .po-close:hover { color: var(--red); }
 
 /* ============================================================
+   SCORECARD
+   ============================================================ */
+.sc-cumulative {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  border: 2px solid var(--black);
+  padding: 14px 18px;
+  flex-wrap: wrap;
+}
+.sc-cum-stroke {
+  width: 30px; height: 54px;
+  background: var(--red);
+  transform: skewX(var(--stroke-angle));
+}
+.sc-cum-label { display: block; font-size: 11px; text-transform: uppercase; letter-spacing: 0.07em; color: var(--ink-55); font-weight: 600; }
+.sc-cum-value { font-size: 42px; font-weight: 700; line-height: 1; letter-spacing: -0.02em; }
+.sc-cum-note { display: block; font-size: 11.5px; color: var(--ink-55); margin-top: 2px; }
+.sc-legend { margin-left: auto; display: flex; gap: 6px; flex-wrap: wrap; }
+
+.score-pill {
+  display: inline-block;
+  padding: 1px 7px;
+  font-weight: 700;
+  font-size: 12px;
+}
+.score-good { background: var(--green); color: var(--black); }
+.score-warn { background: var(--yellow); color: var(--black); }
+.score-bad  { background: var(--red); color: var(--white); }
+td.score-good, td.score-warn, td.score-bad { background: none; }
+td.score-good .score-pill, td.score-good { color: var(--status-good-ink); }
+td.score-warn .score-pill, td.score-warn { color: var(--status-warn-ink); }
+td.score-bad .score-pill, td.score-bad { color: var(--status-bad-ink); }
+td.score-good .score-pill { background: var(--green); color: var(--black); }
+td.score-warn .score-pill { background: var(--yellow); color: var(--black); }
+td.score-bad .score-pill { background: var(--red); color: var(--white); }
+.sc-table .sc-total td { font-weight: 700; border-top: 2px solid var(--black); font-size: 13px; }
+
+.i-btn.i-inline {
+  position: static;
+  width: 16px; height: 16px;
+  font-size: 9.5px;
+  vertical-align: 2px;
+  margin-left: 5px;
+}
+
+/* ============================================================
    STATES / MISC
    ============================================================ */
 .load-report { font-size: 13px; }

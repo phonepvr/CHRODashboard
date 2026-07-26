@@ -58,8 +58,8 @@ const Mock = (() => {
     for (const asset of CONFIG.assets) {
       const P = ASSET_PROFILE[asset];
       const rng = rngFor('people:' + asset);
-      // exited-during-window population ≈ perm * attr * window years * 1.15 (voluntary+invol)
-      const exitedCount = Math.round(P.perm * P.attr * (CONFIG.historyMonths / 12) * 1.15);
+      // exited-during-window population ≈ perm * attr * window years
+      const exitedCount = Math.round(P.perm * P.attr * (CONFIG.historyMonths / 12));
       const total = P.perm + P.trainee + exitedCount;
       for (let i = 0; i < total; i++) {
         seq++;
@@ -81,10 +81,19 @@ const Mock = (() => {
         else if (band === 'VP & above') age = 42 + Math.round(8 + gauss(rng) * 8);
         else if (band === 'AM-GM') age = Math.round(44 + P.ageShift + gauss(rng) * 12);
         else age = Math.round(38 + P.ageShift + gauss(rng) * 14);
+        // legacy-plant reality: a visible cohort within 5–8 years of superannuation
+        if (!isTrainee && rng() < 0.13) age = rint(rng, 50, 57);
         age = Math.max(21, Math.min(58, age));
         const dob = AS_OF_DAY - Math.round(age * 365.25) - rint(rng, 0, 364);
 
-        // tenure (years) — capped by working age; early-tenure heavy for exited @ high-earlyBump assets
+        // exit month first (uniform over the window — keeps monthly rates honest),
+        // then tenure, then DOJ derived backwards for exited employees
+        let exitDay = null;
+        if (isExited) {
+          exitDay = monthEndDay(W_START + Math.floor(rng() * CONFIG.historyMonths)) - rint(rng, 0, 27);
+          if (exitDay > AS_OF_DAY) exitDay = AS_OF_DAY - rint(rng, 5, 90);
+        }
+
         let tenure;
         if (isTrainee) tenure = rng() * 2;
         else {
@@ -92,16 +101,13 @@ const Mock = (() => {
           if (isExited && rng() < 0.22 * P.earlyBump) tenure = rng() * 2.2; // early-turnover cluster
           tenure = Math.min(tenure, age - 21);
         }
-        let doj = AS_OF_DAY - Math.round(tenure * 365.25) - rint(rng, 0, 90);
-        if (doj > AS_OF_DAY) doj = AS_OF_DAY - rint(rng, 10, 200);
-
-        // exit simulation
-        let exitDay = null;
+        let doj;
         if (isExited) {
-          exitDay = monthEndDay(W_START + Math.floor(rng() * CONFIG.historyMonths)) - rint(rng, 0, 27);
-          if (exitDay <= doj) exitDay = doj + rint(rng, 60, 400);
-          if (exitDay > AS_OF_DAY) exitDay = AS_OF_DAY - rint(rng, 5, 200);
+          doj = exitDay - Math.round(tenure * 365.25) - rint(rng, 0, 30);
+        } else {
+          doj = AS_OF_DAY - Math.round(tenure * 365.25) - rint(rng, 0, 90);
         }
+        if (doj > AS_OF_DAY) doj = AS_OF_DAY - rint(rng, 10, 200);
 
         // talent flags (senior bands only)
         const senior = band !== 'Below AM';
@@ -209,8 +215,11 @@ const Mock = (() => {
           appSeq++;
           const applicant = pick(rng, activeSenior);
           const appDay = s.openDay + rint(rng, 2, 25);
-          const status = pickW(rng, [['Applied', 0.3], ['Shortlisted', 0.2], ['Interviewed', 0.2], ['Offered', 0.08], ['Rejected', 0.17], ['Withdrawn', 0.05]]);
-          // ageing cluster: some 'Applied' rows with stale last-action dates
+          // applications older than ~4 months are almost always resolved; the
+          // ageing cluster (>15 days no action) comes from recent stragglers
+          const status = appDay < AS_OF_DAY - 120
+            ? pickW(rng, [['Rejected', 0.52], ['Withdrawn', 0.13], ['Interviewed', 0.25], ['Offered', 0.1]])
+            : pickW(rng, [['Applied', 0.3], ['Shortlisted', 0.2], ['Interviewed', 0.2], ['Offered', 0.08], ['Rejected', 0.17], ['Withdrawn', 0.05]]);
           const lastAction = status === 'Applied' && rng() < 0.35
             ? appDay
             : Math.min(AS_OF_DAY, appDay + rint(rng, 1, 40));
@@ -332,7 +341,7 @@ const Mock = (() => {
         const tonnes = annualTonnesPerHead ? Math.round(P.perm * annualTonnesPerHead / 12 * season * (0.93 + rng() * 0.14)) : '';
         const totalWorkforce = P.perm + P.trainee + P.contract;
         const manHours = Math.round(totalWorkforce * 205 * (0.96 + rng() * 0.08));
-        const lti = rng() < 0.72 ? 0 : rng() < 0.85 ? 1 : 2;
+        const lti = rng() < 0.5 ? 0 : rng() < 0.8 ? 1 : 2;
         const irDays = rng() < 0.9 ? 0 : rint(rng, 40, 400);
         const empCost = Math.round(P.perm * rint(rng, 135000, 150000) * (1 + (mi - W_START) * 0.004));
         const revenue = annualTonnesPerHead ? Math.round(tonnes * rint(rng, 52000, 60000)) : Math.round(P.perm * 900000);
@@ -358,20 +367,23 @@ const Mock = (() => {
 
   function genTargets() {
     // Demo targets only — in BYOF mode targets come from targets.csv.
+    // Keys must match registry keys; a few metrics are deliberately left
+    // without targets to exercise the "Target not set" state.
     return [
-      ['attr_annualised', 9, 'lower'], ['attr_tt_count', 4, 'lower'], ['attr_early_1y', 12, 'lower'],
+      ['attr_annualised', 9, 'lower'], ['attr_tt_count', 3, 'lower'], ['attr_early_1y', 12, 'lower'],
       ['attr_regretted', 30, 'lower'],
       ['succession_coverage', 80, 'higher'], ['succ_ready_now', 45, 'higher'], ['internal_fill_rate', 60, 'higher'],
-      ['tt_stagnation', 18, 'lower'], ['cp_occupancy', 55, 'higher'], ['cp_vacancy_3m', 4, 'lower'],
-      ['learning_coverage_all', 75, 'higher'], ['learning_days_per_emp', 3, 'higher'],
+      ['tt_stagnation', 18, 'lower'], ['tt_3yr_nopromo', 10, 'lower'],
+      ['cp_occupancy', 55, 'higher'], ['cp_vacancy', 8, 'lower'], ['req_open_90d', 5, 'lower'],
+      ['learning_coverage_all', 75, 'higher'], ['learning_days_all', 3, 'higher'],
       ['idp_coverage', 85, 'higher'], ['lms_adoption', 85, 'higher'], ['lms_active_6m', 60, 'higher'],
-      ['posting_compliance', 100, 'higher'], ['mobility_ageing', 0, 'lower'],
-      ['female_pct', 10, 'higher'], ['female_pct_trainees', 25, 'higher'],
-      ['headcount_close', null, 'higher'],
-      ['tonnes_per_emp', 1200, 'higher'], ['cost_per_tonne', 2600, 'lower'], ['ltifr', 0.3, 'lower'],
+      ['posting_compliance', 100, 'higher'], ['mobility_ageing', 10, 'lower'],
+      ['female_pct', 10, 'higher'], ['female_trainees', 25, 'higher'],
+      ['time_to_fill_median', 75, 'lower'], ['promo_coverage_2y', 40, 'higher'], ['promo_recency_median', 3, 'lower'],
+      ['tonnes_per_emp', 350, 'higher'], ['cost_per_tonne', 2600, 'lower'], ['ltifr', 0.3, 'lower'],
       ['contract_attendance_pct', 92, 'higher'], ['contract_compliance_idx', 95, 'higher'],
-      ['ecost_pct_revenue', 4.5, 'lower'], ['span_of_control', 5.5, 'higher']
-    ].filter((t) => t[1] != null);
+      ['ecost_pct_revenue', 4.5, 'lower']
+    ];
   }
 
   /* ================= CSV emission (through SCHEMAS column order) ================= */

@@ -216,6 +216,18 @@ const App = {
     document.addEventListener('click', (e) => {
       const iBtn = e.target.closest('[data-info]');
       if (iBtn) { UI.Popover.open(iBtn, UI.popoverHTML(iBtn.dataset.info)); return; }
+      const sBtn = e.target.closest('[data-scoreinfo]');
+      if (sBtn) { UI.Popover.open(sBtn, Scorecard.scoreInfoHTML(sBtn.dataset.scoreinfo)); return; }
+      const jump = e.target.closest('[data-jump]');
+      if (jump) {
+        const entry = REG_BY_KEY.get(jump.dataset.jump);
+        if (entry) {
+          UI.activateTab(entry.tab);
+          const tile = document.querySelector(`#panel-${entry.tab} [data-key="${entry.key}"]`);
+          if (tile) { tile.scrollIntoView({ block: 'center' }); tile.style.outline = '2px solid var(--red)'; setTimeout(() => { tile.style.outline = ''; }, 1600); }
+        }
+        return;
+      }
       const tpl = e.target.closest('[data-template]');
       if (tpl) { Exports.downloadTemplate(tpl.dataset.template); return; }
       if (e.target.closest('[data-template-all]')) { Exports.downloadAllTemplates(); return; }

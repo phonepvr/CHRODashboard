@@ -103,7 +103,7 @@ defineMetric({
 
 defineMetric({
   key: 'span_of_control', label: 'Span of control', tab: 'overview',
-  group: 'Workforce', unit: '', direction: 'higher', scorecard: 'HR Operations',
+  group: 'Workforce', unit: '', direction: null,
   formulaText: 'Individual contributors ÷ people managers\n(managers = active employees referenced as Manager ID by ≥1 active employee)',
   inputs: [{ dataset: 'employee_master', columns: ['Employee ID', 'Manager ID'] }],
   caveat: 'Managers with dotted-line teams are counted once, by direct reports only.',
@@ -119,7 +119,7 @@ defineMetric({
 
 defineMetric({
   key: 'attr_annualised', label: 'Annualised attrition', tab: 'overview',
-  group: 'Attrition', unit: '%', direction: 'lower', scorecard: 'HR Operations',
+  group: 'Workforce', unit: '%', direction: 'lower', scorecard: 'HR Operations',
   formulaText: '(Exits in period ÷ average headcount over period) × (12 ÷ months in period) × 100',
   inputs: [{ dataset: 'exits', columns: ['Employee ID', 'Exit Date'] },
            { dataset: 'employee_master', columns: ['Employee ID', 'Date of Joining', 'Employee Class'] }],
@@ -131,7 +131,7 @@ defineMetric({
 
 defineMetric({
   key: 'female_pct', label: 'Female share of workforce', tab: 'overview',
-  group: 'Diversity', unit: '%', direction: 'higher', scorecard: 'HR Operations',
+  group: 'Workforce', unit: '%', direction: 'higher', scorecard: 'HR Operations',
   formulaText: 'Active permanent female employees ÷ active permanent employees × 100',
   inputs: [{ dataset: 'employee_master', columns: ['Employee ID', 'Gender'] }],
   compute: (m, ctx) => {
