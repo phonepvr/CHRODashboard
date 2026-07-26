@@ -41,8 +41,10 @@ const App = {
     }
     const results = [];
     let done = 0;
-    // clear mock data on first real load; keep previously loaded real files (partial loads add up)
+    // clear mock data on first real load; keep previously loaded real files so
+    // partial loads add up (from the gate on first load, or via "Load / add files")
     if (App.state.mode === 'mock') App.state.datasets.clear();
+    const seenSchemas = new Map(); // schemaId -> first filename this batch (collision detection)
     for (const f of files) {
       const reader = new FileReader();
       reader.onload = () => {
@@ -51,11 +53,15 @@ const App = {
         if (!match) {
           results.push({ file: f.name, ok: false, note: 'Not recognised as any template — headers do not match. Download the templates to see the expected columns.' });
         } else {
+          const collidesWith = seenSchemas.get(match.schemaId);
+          seenSchemas.set(match.schemaId, f.name);
           const applied = storeParsed(match.schemaId, parsed, f.name);
           results.push({
             file: f.name, ok: true, schemaId: match.schemaId,
             missing: match.missing, unexpected: match.unexpected,
-            stats: applied.stats, errors: applied.errors
+            stats: applied.stats, errors: applied.errors,
+            warnings: parsed.warnings,
+            collidesWith
           });
           if (!App.state.loadedFileNames.includes(f.name)) App.state.loadedFileNames.push(f.name);
         }
@@ -83,13 +89,15 @@ const App = {
         (e.rows.length ? ` (e.g. row${e.rows.length > 1 ? 's' : ''} ${e.rows.slice(0, 6).join(', ')}${e.count > 6 ? '…' : ''})` : '') + `</li>`).join('');
       const missing = r.missing.length ? `<li class="lr-err">Missing columns: ${esc(r.missing.join(', '))}</li>` : '';
       const unexpected = r.unexpected.length ? `<li>Ignored unexpected columns: ${esc(r.unexpected.join(', '))}</li>` : '';
+      const parseWarn = (r.warnings || []).map((w) => `<li class="lr-err">${esc(w)}</li>`).join('');
+      const collide = r.collidesWith ? `<li class="lr-err">Both this file and “${esc(r.collidesWith)}” map to ${esc(r.schemaId)}.csv — this one replaced it. Load only one file per template.</li>` : '';
       return `<div class="lr-file">${esc(r.file)} → ${esc(r.schemaId)}.csv</div>
         <div class="lr-ok">✓ ${fmtInt(r.stats.acceptedRows)} of ${fmtInt(r.stats.totalRows)} rows loaded${r.stats.droppedRows ? ` · ${fmtInt(r.stats.droppedRows)} dropped (missing/invalid required values)` : ''}</div>
-        ${errs || missing || unexpected ? `<ul>${missing}${unexpected}${errs}</ul>` : ''}`;
+        ${errs || missing || unexpected || parseWarn || collide ? `<ul>${collide}${parseWarn}${missing}${unexpected}${errs}</ul>` : ''}`;
     });
     const notLoaded = SCHEMA_IDS.filter((id) => !App.state.datasets.has(id));
     const partial = notLoaded.length
-      ? `<p style="margin-top:10px">Not loaded yet: ${notLoaded.map((i) => i + '.csv').join(', ')} — the tiles that need them show “No data loaded for this metric”. You can drop more files any time via <em>Reset / load different data</em>.</p>`
+      ? `<p style="margin-top:10px">Not loaded yet: ${notLoaded.map((i) => i + '.csv').join(', ')} — the tiles that need them show “No data loaded for this metric”. Use <em>Load / add files</em> in the header to add them without losing what’s already loaded.</p>`
       : '';
     return `<div class="load-report">${parts.join('')}${partial}
       <p style="margin-top:10px"><strong>Nothing left your browser.</strong> Files were parsed locally and are held in memory only — a reload clears them.</p></div>`;
@@ -132,6 +140,12 @@ const App = {
     App.state.dataVersion++;
     App.state.mode = 'gate';
     App.state.renderedTabs.clear();
+    App.__lastDrill = null;                       // drop any retained drill rows
+    Compute.invalidate();
+    // wipe the pre-rendered print pack immediately: otherwise a Ctrl+P at the
+    // empty gate would print the previous dataset's confidential pages.
+    document.getElementById('print-root').innerHTML = '';
+    if (typeof PrintPack !== 'undefined') PrintPack.markDirty();
     document.getElementById('app').hidden = true;
     document.getElementById('load-gate').hidden = false;
     document.getElementById('gate-mock').focus();
@@ -164,6 +178,7 @@ const App = {
 
     document.getElementById('btn-reset').addEventListener('click', resetToGate);
     document.getElementById('btn-templates').addEventListener('click', Exports.openTemplatesModal);
+    document.getElementById('btn-add').addEventListener('click', () => document.getElementById('file-input').click());
     document.getElementById('btn-howto').addEventListener('click', openHowTo);
     document.getElementById('btn-print').addEventListener('click', () => {
       if (typeof PrintPack !== 'undefined') PrintPack.ensureFresh();
@@ -208,6 +223,16 @@ const App = {
         if (e.dataTransfer && e.dataTransfer.files.length) loadFiles(e.dataTransfer.files);
       });
     }
+
+    // Global guard: once the dashboard is showing, a file dropped anywhere would
+    // otherwise navigate the tab to that file and destroy all in-memory state.
+    // Swallow the default everywhere and route dropped CSVs into the loader.
+    document.addEventListener('dragover', (e) => { if (App.state.mode !== 'gate') e.preventDefault(); });
+    document.addEventListener('drop', (e) => {
+      if (App.state.mode === 'gate') return; // gate has its own handler above
+      e.preventDefault();
+      if (e.dataTransfer && e.dataTransfer.files.length) loadFiles(e.dataTransfer.files);
+    });
   }
 
   /* ---------- global delegation ("i", drill, template buttons) ---------- */

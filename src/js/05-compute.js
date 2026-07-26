@@ -28,10 +28,16 @@ const Compute = (() => {
       const prev = exitByEmp.get(x.employee_id);
       if (!prev || x.exit_date > prev.exit_date) exitByEmp.set(x.employee_id, x);
     }
+    // Dedupe by Employee ID (first wins) for BOTH joins and headcount maths, so
+    // duplicate rows never double-count in a denominator. The raw dataset still
+    // carries the duplicates, which the Data Quality tab reports separately.
     const empById = new Map();
+    const uniqueEmps = [];
     for (const e of emps) {
       e.__exit = exitByEmp.get(e.employee_id) || null;
-      if (!empById.has(e.employee_id)) empById.set(e.employee_id, e); // first wins; dupes flagged in DQ
+      if (e.employee_id != null && empById.has(e.employee_id)) continue;
+      if (e.employee_id != null) empById.set(e.employee_id, e);
+      uniqueEmps.push(e);
     }
     for (const x of exits) x.__emp = empById.get(x.employee_id) || null;
 
@@ -55,7 +61,7 @@ const Compute = (() => {
     const reqById = new Map(reqs.map((r) => [r.requisition_id, r]));
 
     model = {
-      emps, exits, empById, exitByEmp,
+      emps: uniqueEmps, rawEmps: emps, exits, empById, exitByEmp,
       reqs, reqById,
       apps: ds('internal_applications') || [],
       learning, learningByEmp,
@@ -233,7 +239,9 @@ const Compute = (() => {
 
   function cpPositions(m, ctx) {
     if (m.has('succession')) return positions(m, ctx).filter((p) => p.level === 'CP').length;
-    if (m.has('employee_master')) return actives(m, ctx, 'Permanent').filter((e) => e.cp_flag).length || null;
+    // employee_master fallback: a genuine zero (e.g. band filter with no CPs) is a
+    // real count, not "not computable" — return 0, not null.
+    if (m.has('employee_master')) return actives(m, ctx, 'Permanent').filter((e) => e.cp_flag).length;
     return null;
   }
 
@@ -262,6 +270,19 @@ const Compute = (() => {
     if (latest == null) return null;
     return m.cAtt.filter((r) => r.month === latest && inAsset(ctx, r.asset))
       .reduce((s, r) => s + (r.contract_headcount || 0), 0);
+  }
+
+  // Average total contract headcount over the period: mean across the months that
+  // actually report, so a ragged panel (one asset short a month) doesn't zero an
+  // asset out — matches the "average total workforce" the productivity tiles state.
+  function contractAvgHeadcount(m, ctx) {
+    if (!m.has('contract_attendance')) return null;
+    const byMonth = new Map();
+    for (const r of m.cAtt) {
+      if (r.month == null || r.month < ctx.startMonth || r.month > ctx.endMonth || !inAsset(ctx, r.asset)) continue;
+      byMonth.set(r.month, (byMonth.get(r.month) || 0) + (r.contract_headcount || 0));
+    }
+    return byMonth.size ? mean([...byMonth.values()]) : null;
   }
 
   function panelRowsInPeriod(rows, ctx) {
@@ -338,7 +359,11 @@ const Compute = (() => {
     const entry = REG_BY_KEY.get(key);
     if (!entry) return { entry: null, value: null, available: false };
     const ctx = ctxNow(overrides);
-    const mk = key + '|' + ctx.asset + '|' + ctx.band + '|' + ctx.startMonth + '-' + ctx.endMonth + '|' + App.state.dataVersion;
+    // The sparkline is computed only for base-context calls (no overrides). The
+    // memo key must therefore distinguish the two, or an override call whose ctx
+    // equals the base ctx (e.g. the exec summary at the current asset) would cache
+    // a spark-less entry that the tile then reads — dropping the trend line.
+    const mk = key + '|' + ctx.asset + '|' + ctx.band + '|' + ctx.startMonth + '-' + ctx.endMonth + '|' + App.state.dataVersion + (overrides ? '|ov' : '|base');
     if (memo.has(mk)) return memo.get(mk);
     const m = build();
     const available = metricAvailable(entry);
@@ -397,7 +422,7 @@ const Compute = (() => {
     annualisedAttrition, monthAttritionRate, ytdAttrition,
     cohortFilter, learningCoverage, learningDaysPerEmp,
     positions, cpPositions, succMatch, seniorReq, reqsClosedInPeriod,
-    contractHeadcount, contractAttendancePct, complianceShare, inductionAvg, contractCompositeIdx,
+    contractHeadcount, contractAvgHeadcount, contractAttendancePct, complianceShare, inductionAvg, contractCompositeIdx,
     panelRowsInPeriod, latestPanelMonth, prodSum,
     blankShareNote, blankExitReasonNote, staleIdpNote,
     drillHeadcount, drillExits,

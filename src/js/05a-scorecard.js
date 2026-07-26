@@ -60,10 +60,18 @@ const Scorecard = (() => {
       : 'Score = Actual ÷ Target × 100   (higher is better)';
     let worked = 'Target not set — no score; excluded from the function total.';
     if (target != null && res.value != null) {
+      // show the RAW arithmetic, then the clamp separately when it actually binds,
+      // so the worked equation is never arithmetically false.
+      const raw = direction === 'lower'
+        ? (2 * target - res.value) / target * 100
+        : res.value / target * 100;
       const s = scoreOf(res.value, target, direction);
-      worked = direction === 'lower'
-        ? `(2 × ${fmtNum(target, e.decimals)} − ${fmtNum(res.value, e.decimals)}) ÷ ${fmtNum(target, e.decimals)} × 100 = ${fmtNum(s, 1)}`
-        : `${fmtNum(res.value, e.decimals)} ÷ ${fmtNum(target, e.decimals)} × 100 = ${fmtNum(s, 1)}`;
+      const eq = direction === 'lower'
+        ? `(2 × ${fmtNum(target, e.decimals)} − ${fmtNum(res.value, e.decimals)}) ÷ ${fmtNum(target, e.decimals)} × 100 = ${fmtNum(raw, 1)}`
+        : `${fmtNum(res.value, e.decimals)} ÷ ${fmtNum(target, e.decimals)} × 100 = ${fmtNum(raw, 1)}`;
+      worked = Math.abs(raw - s) > 0.05
+        ? `${eq}\nClamped to the [0, 200] range → ${fmtNum(s, 1)}`
+        : eq;
     }
     return `<h3>Score — ${esc(e.label)}</h3>
       <div class="po-formula">${esc(formula)}\n${esc(worked)}</div>

@@ -14,7 +14,7 @@ defineMetric({
     const tonnes = Compute.prodSum(m, ctx, 'tonnes');
     if (tonnes == null) return null;
     const onRoll = Compute.avgHeadcount(m, ctx, null);
-    const contract = Compute.contractHeadcount(m, ctx) || 0;
+    const contract = Compute.contractAvgHeadcount(m, ctx) || 0; // period average, not a snapshot
     const base = (onRoll || 0) + contract;
     if (!base) return null;
     return tonnes / base * (12 / ctx.periodMonths);

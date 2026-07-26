@@ -9,29 +9,36 @@ const CSV = {
     if (text.charCodeAt(0) === 0xFEFF) text = text.slice(1); // BOM
     const rows = [];
     const warnings = [];
-    let field = '', row = [], inQuotes = false;
-    const pushField = () => { row.push(field); field = ''; };
+    let field = '', row = [], inQuotes = false, fieldStart = true, strayQuotes = 0;
+    const pushField = () => { row.push(field); field = ''; fieldStart = true; };
     const pushRow = () => { rows.push(row); row = []; };
     for (let i = 0; i < text.length; i++) {
       const c = text[i];
       if (inQuotes) {
         if (c === '"') {
           if (text[i + 1] === '"') { field += '"'; i++; }
-          else inQuotes = false;
+          else { inQuotes = false; }
         } else field += c;
-      } else if (c === '"') {
+      } else if (c === '"' && fieldStart) {
+        // RFC4180: a quote opens a quoted field ONLY at the start of the field.
         inQuotes = true;
+        fieldStart = false;
       } else if (c === ',') {
         pushField();
       } else if (c === '\n' || c === '\r') {
         if (c === '\r' && text[i + 1] === '\n') i++;
         pushField(); pushRow();
       } else {
+        // a quote mid-field is a literal character (e.g. an inch mark) — kept, not
+        // treated as a delimiter, so the rest of the file is never swallowed.
+        if (c === '"') strayQuotes++;
         field += c;
+        fieldStart = false;
       }
     }
     if (field !== '' || row.length) { pushField(); pushRow(); }
-    if (inQuotes) warnings.push('File ended inside a quoted field — the last value may be truncated.');
+    if (inQuotes) warnings.push('A quoted value was never closed — check for an unmatched double-quote; the last value may be truncated.');
+    if (strayQuotes) warnings.push(`${strayQuotes} stray double-quote${strayQuotes > 1 ? 's' : ''} found mid-value and kept as literal characters — quote a whole field if it should contain commas or quotes.`);
     // drop fully-empty trailing rows
     while (rows.length && rows[rows.length - 1].every((v) => v.trim() === '')) rows.pop();
     if (!rows.length) return { headers: [], rows: [], warnings: ['File is empty.'] };
@@ -102,7 +109,7 @@ const CSV = {
             case 'int': case 'num': case 'pct': {
               const n = Number(val.replace(/,/g, ''));
               if (!isFinite(n)) { addErr(col.name, 'bad_number', `Couldn't read "${col.name}" — expected a number`, rowNo); val = null; if (col.required) rowOk = false; }
-              else if (col.type === 'pct' && (n < 0 || n > 100)) { addErr(col.name, 'bad_number', `"${col.name}" outside 0–100`, rowNo); val = n; }
+              else if (col.type === 'pct' && (n < 0 || n > 100)) { addErr(col.name, 'bad_number', `"${col.name}" outside 0–100`, rowNo); val = null; }
               else val = n;
               break;
             }

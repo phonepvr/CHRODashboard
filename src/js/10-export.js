@@ -118,7 +118,7 @@ const Exports = (() => {
   }
 
   function drillCSV(d) {
-    const strip = (c) => String(c ?? '').replace(/<[^>]*>/g, '');
+    const strip = (c) => String((c && typeof c === 'object' && 'html' in c) ? c.html : (c ?? '')).replace(/<[^>]*>/g, '');
     downloadBlob(d.title.replace(/\W+/g, '-').toLowerCase() + '.csv',
       CSV.serialize(d.columns, d.rows.map((r) => r.map(strip))));
   }

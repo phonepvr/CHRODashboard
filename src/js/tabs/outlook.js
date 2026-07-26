@@ -71,10 +71,7 @@ const Outlook = (() => {
     for (let i = 1; i <= horizonM; i++) {
       const mi = ctx.endMonth + i;
       months.push(mi);
-      const n = actives.filter((e) => {
-        const retireDay = e.dob + Math.round(CONFIG.retirementAge * 365.25);
-        return dayToMonthIdx(retireDay) === mi;
-      }).length;
+      const n = actives.filter((e) => retireMonthIdx(e.dob, CONFIG.retirementAge) === mi).length;
       cum += n;
       counts.push(n);
       cumSeries.push(cum);
@@ -108,7 +105,7 @@ const Outlook = (() => {
     let hc = start, remainingReqs = openReqs.length;
     const vals = [];
     const retire = (mi) => Compute.actives(m, ctx, 'Permanent').filter((e) => e.dob != null &&
-      dayToMonthIdx(e.dob + Math.round(CONFIG.retirementAge * 365.25)) === mi).length;
+      retireMonthIdx(e.dob, CONFIG.retirementAge) === mi).length;
     for (let i = 1; i <= horizonM; i++) {
       const mi = ctx.endMonth + i;
       months.push(mi);

@@ -228,10 +228,13 @@ const UI = (() => {
       <div class="po-row"><span class="po-k">Data quality</span>${res.quality ? `<span class="po-warn">⚠ ${esc(res.quality)}</span>` : res.available ? 'No issues detected for this metric.' : 'Not computed — inputs not loaded.'}</div>`;
   }
 
+  // Cells are ALWAYS escaped unless explicitly wrapped as {html: '…'} by our
+  // own renderers — loaded CSV content can never smuggle markup into the DOM.
   function tableHTML(columns, rows) {
+    const cell = (c) => (c && typeof c === 'object' && 'html' in c) ? c.html : esc(c);
     return `<div class="table-scroll"><table class="data-table">
       <thead><tr>${columns.map((c) => `<th>${esc(c)}</th>`).join('')}</tr></thead>
-      <tbody>${rows.map((r) => `<tr>${r.map((c) => `<td>${typeof c === 'string' && c.startsWith('<') ? c : esc(c)}</td>`).join('')}</tr>`).join('')}</tbody>
+      <tbody>${rows.map((r) => `<tr>${r.map((c) => `<td>${cell(c)}</td>`).join('')}</tr>`).join('')}</tbody>
     </table></div>`;
   }
 

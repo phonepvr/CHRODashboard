@@ -99,6 +99,12 @@ function monthEndDay(mi) {
   return makeDay(y, m0 + 1, 1) - 1;
 }
 function yearsBetween(d1, d2) { return (d2 - d1) / 365.25; }
+// Month index in which an employee reaches `age` — exact calendar arithmetic on
+// the birthday, so leap-year spans never shift a month-end birthday by a day.
+function retireMonthIdx(dobDay, age) {
+  const d = dayToDate(dobDay);
+  return (d.getUTCFullYear() + age) * 12 + d.getUTCMonth();
+}
 
 const AS_OF_DAY = parseDMY(CONFIG.asOf);
 const AS_OF_MONTH = dayToMonthIdx(AS_OF_DAY);

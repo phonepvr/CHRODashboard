@@ -90,13 +90,15 @@ const ExecSummary = (() => {
       return { type: 'watch', key: 'idp_band_low', text: `${fmtPct(v, 0)} of TT development plans are at ≤25% implementation.` };
     });
 
-    // 8. LTIFR
+    // 8. LTIFR — only make a threshold claim when a target actually exists
+    // (no invented benchmarks).
     R.push(() => {
       const v = val('ltifr', asset);
       if (v == null) return null;
       const t = target('ltifr');
-      if (t != null && v > t) return { type: 'watch', key: 'ltifr', text: `LTIFR at ${fmtNum(v, 2)} exceeds the ${fmtNum(t, 2)} threshold (per 1,000,000 man-hours).` };
-      return { type: 'good', key: 'ltifr', text: `LTIFR at ${fmtNum(v, 2)} stays under the ${t != null ? fmtNum(t, 2) : 'agreed'} threshold.` };
+      if (t == null) return { type: 'neutral', key: 'ltifr', text: `LTIFR is ${fmtNum(v, 2)} per 1,000,000 man-hours (no target set).` };
+      if (v > t) return { type: 'watch', key: 'ltifr', text: `LTIFR at ${fmtNum(v, 2)} exceeds the ${fmtNum(t, 2)} threshold (per 1,000,000 man-hours).` };
+      return { type: 'good', key: 'ltifr', text: `LTIFR at ${fmtNum(v, 2)} stays under the ${fmtNum(t, 2)} threshold.` };
     });
 
     // 9. contract compliance

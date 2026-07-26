@@ -11,7 +11,7 @@ TabRenderers.quality = (panel) => {
 
   const issueRows = q.issues.length
     ? q.issues.map((i) => [
-        `<span class="score-pill ${i.severity === 'high' ? 'score-bad' : 'score-warn'}">${i.severity}</span>`,
+        { html: `<span class="score-pill ${i.severity === 'high' ? 'score-bad' : 'score-warn'}">${esc(i.severity)}</span>` },
         i.where, i.what])
     : [];
 

@@ -269,11 +269,11 @@ main { padding: 14px 16px 40px; min-height: 55vh; }
 .tile-meta .good { color: var(--status-good-ink); font-weight: 600; }
 .tile-meta .bad { color: var(--status-bad-ink); font-weight: 600; }
 .tile-meta .warn { color: var(--status-warn-ink); font-weight: 600; }
-.tile-src { font-size: 10px; color: var(--ink-40); text-transform: uppercase; letter-spacing: 0.06em; }
+.tile-src { font-size: 10px; color: var(--ink-70); text-transform: uppercase; letter-spacing: 0.06em; }
 
 .tile.is-alert { border-top-color: var(--red); }
 .tile.is-empty { background: var(--ink-05); border-top-color: var(--ink-30); }
-.tile.is-empty .tile-value { color: var(--ink-40); font-size: 14px; font-weight: 600; }
+.tile.is-empty .tile-value { color: var(--ink-70); font-size: 14px; font-weight: 600; }
 
 .tile-quality {
   font-size: 11px;

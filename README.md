@@ -33,6 +33,18 @@ Every tile and chart exposes an "i" affordance with its exact formula, input col
 caveats and data-quality notes, all driven by **one formula registry** which also
 generates the Methodology appendix, the upload templates and the data dictionary.
 
+## Live site
+
+Deployed by GitHub Actions to GitHub Pages:
+`https://phonepvr.github.io/CHRODashboard/`
+
+> First-time setup: the workflow's deploy job needs Pages enabled once —
+> **Settings → Pages → Build and deployment → Source: GitHub Actions**. The
+> `GITHUB_TOKEN` cannot create the Pages site itself; every push deploys
+> automatically after that one click. The built single file is also attached to
+> every workflow run as the `dashboard-single-file` artifact — download it and
+> open it straight from disk (`file://`) if you prefer.
+
 ## Build & deploy
 
 Zero-build by design: the CI "build" step only concatenates the source parts and inlines

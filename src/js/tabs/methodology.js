@@ -9,7 +9,7 @@ TabRenderers.methodology = (panel) => {
   const metricRows = (entries) => entries.map((e) => [
     e.label,
     e.key,
-    `<span style="font-family:ui-monospace,Menlo,Consolas,monospace;font-size:11.5px;white-space:pre-wrap">${esc(e.formulaText)}</span>`,
+    { html: `<span style="font-family:ui-monospace,Menlo,Consolas,monospace;font-size:11.5px;white-space:pre-wrap">${esc(e.formulaText)}</span>` },
     e.inputs.map((i) => i.dataset + '.csv').join(', '),
     e.direction ? (e.direction === 'higher' ? 'higher is better' : 'lower is better') : '—',
     e.scorecard || '—'
