@@ -1,0 +1,64 @@
+/* ============================================================
+   AM/NS brand tokens — from the brand reference
+   Primary: Smart Red / Strong Black / Pure White (+10–90% tints)
+   Secondary (ACCENTS ONLY, never dominant): Dynamic Yellow,
+   Young Green, Global Blue.
+   ============================================================ */
+:root {
+  /* Primary */
+  --red: #E52726;
+  --black: #000000;
+  --white: #FFFFFF;
+
+  /* Smart Red tints (n% red over white) */
+  --red-80: #EA5251;
+  --red-60: #EF7D7D;
+  --red-40: #F5A9A8;
+  --red-20: #FAD4D4;
+  --red-10: #FCE9E9;
+
+  /* Strong Black tints */
+  --ink-90: #1A1A1A;
+  --ink-80: #333333;
+  --ink-70: #4D4D4D;
+  --ink-55: #737373;
+  --ink-40: #999999;
+  --ink-30: #B3B3B3;
+  --ink-20: #CCCCCC;
+  --ink-10: #E6E6E6;
+  --ink-05: #F2F2F2;
+
+  /* Secondary accents — never dominant fills */
+  --yellow: #FFA700;
+  --green: #C0F353;
+  --blue: #A8E0FF;
+
+  /* Status (scorecard rule: ≥100 green · 90–100 yellow · <90 red).
+     Darker companions for text/icons so state is never pale-color-alone. */
+  --status-good: var(--green);
+  --status-good-ink: #3D6B00;
+  --status-warn: var(--yellow);
+  --status-warn-ink: #8A5B00;
+  --status-bad: var(--red);
+  --status-bad-ink: #B71C1B;
+
+  /* Chart encoding: focus + context (monochrome brand — identity is carried by
+     direct labels, emphasis by Smart Red; context series use lightness-separated inks) */
+  --series-focus: var(--red);
+  --series-group: var(--black);
+  --series-ctx-1: var(--ink-55);
+  --series-ctx-2: var(--ink-30);
+  --series-fill: var(--red-10);
+  --projected: var(--ink-55);
+
+  /* Type */
+  --font-sans: "Albert Sans", -apple-system, BlinkMacSystemFont, "Segoe UI",
+               Roboto, "Helvetica Neue", Arial, sans-serif;
+
+  /* Layout */
+  --hairline: 1px solid var(--ink-10);
+  --gap: 10px;
+  --pad: 12px;
+  --stroke-angle: -18deg; /* the AM/NS forward diagonal — never reversed */
+  --focus-ring: 2px solid var(--red);
+}

@@ -1,0 +1,15 @@
+{
+  "name": "amns-hr-dashboard",
+  "version": "0.1.0",
+  "private": true,
+  "description": "HR Dashboard @AM/NS — privacy-first, fully offline, single-file CHRO dashboard mockup. No data lives in this repository.",
+  "license": "MIT",
+  "scripts": {
+    "build": "node build/assemble.mjs --out dist/index.html",
+    "build:font": "node build/assemble.mjs --font build/font.b64 --out dist/index.html",
+    "test": "playwright test"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.49.0"
+  }
+}

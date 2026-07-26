@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' data:; connect-src 'none'">
+<meta name="color-scheme" content="light">
+<title>HR Dashboard @AM/NS</title>
+<!--@font-start-->
+<style>
+@font-face {
+  font-family: "Albert Sans";
+  src: url(data:font/woff2;base64,__FONT_B64_400__) format("woff2");
+  font-weight: 400; font-style: normal; font-display: swap;
+}
+@font-face {
+  font-family: "Albert Sans";
+  src: url(data:font/woff2;base64,__FONT_B64_600__) format("woff2");
+  font-weight: 500 600; font-style: normal; font-display: swap;
+}
+@font-face {
+  font-family: "Albert Sans";
+  src: url(data:font/woff2;base64,__FONT_B64_700__) format("woff2");
+  font-weight: 700; font-style: normal; font-display: swap;
+}
+</style>
+<!--@font-end-->
+<!--@inject:css-->
+</head>
+<body>
+<noscript>
+  <p style="padding:2rem;font-family:sans-serif">HR Dashboard @AM/NS needs JavaScript to run.
+  Everything executes locally in your browser; no data is ever uploaded.</p>
+</noscript>
+
+<!-- ============================ LOAD GATE ============================ -->
+<section id="load-gate" class="gate" aria-label="Load data to begin">
+  <div class="gate-stroke" aria-hidden="true"><i class="s1"></i><i class="s2"></i></div>
+  <div class="gate-inner">
+    <div class="wordmark gate-wordmark" aria-label="AM/NS India">
+      <span class="wm-mark">AM/NS</span><span class="wm-sub">ArcelorMittal Nippon Steel India</span>
+    </div>
+    <h1 class="gate-title">HR Dashboard <span class="at">@AM/NS</span></h1>
+    <p class="gate-tagline">Smarter Steels. Brighter Futures.</p>
+
+    <div class="gate-actions">
+      <button id="gate-load" class="gate-card" type="button">
+        <span class="gc-kicker">Bring your own file</span>
+        <span class="gc-title">Load your data</span>
+        <span class="gc-desc">Drop CSV files here or click to choose. Parsed and computed
+        entirely in this browser.</span>
+      </button>
+      <button id="gate-mock" class="gate-card gate-card-primary" type="button">
+        <span class="gc-kicker">One-click demo</span>
+        <span class="gc-title">Explore with mock data</span>
+        <span class="gc-desc">Seeded synthetic dataset — identical numbers every run,
+        clearly labelled illustrative.</span>
+      </button>
+      <button id="gate-templates" class="gate-card" type="button">
+        <span class="gc-kicker">Input schema</span>
+        <span class="gc-title">Download upload templates</span>
+        <span class="gc-desc">Blank CSV templates + data dictionary, generated from the
+        formula registry.</span>
+      </button>
+    </div>
+
+    <p class="gate-reassure">Your file is read in your browser and never uploaded.</p>
+    <p class="gate-fineprint">Illustrative mockup &middot; no real employee data anywhere in this
+    application or its repository &middot; nothing is written to browser storage.</p>
+  </div>
+  <input id="file-input" type="file" accept=".csv,text/csv" multiple hidden>
+</section>
+
+<!-- ============================ APP ============================ -->
+<div id="app" hidden>
+  <header class="app-header">
+    <div class="hdr-stroke" aria-hidden="true"></div>
+    <div class="wordmark hdr-wordmark"><span class="wm-mark">AM/NS</span></div>
+    <h1 class="hdr-title">HR Dashboard <span class="at">@AM/NS</span></h1>
+    <span id="data-chip" class="chip" role="status"></span>
+    <div class="hdr-actions">
+      <button id="btn-howto" class="btn btn-ghost" type="button">How to use</button>
+      <button id="btn-templates" class="btn btn-ghost" type="button">Templates</button>
+      <button id="btn-reset" class="btn btn-ghost" type="button">Reset / load different data</button>
+    </div>
+  </header>
+
+  <div class="control-bar" role="toolbar" aria-label="Dashboard controls">
+    <label class="ctl">Asset
+      <select id="sel-asset"></select>
+    </label>
+    <label class="ctl">Grade band
+      <select id="sel-band"></select>
+    </label>
+    <label class="ctl">Illustrative period
+      <select id="sel-period"></select>
+    </label>
+    <label class="ctl ctl-search">Search
+      <input id="search" type="search" placeholder="Find a metric…" autocomplete="off">
+    </label>
+    <span class="ctl-spacer"></span>
+    <button id="btn-print" class="btn btn-solid" type="button">Print pack</button>
+    <button id="btn-export" class="btn btn-outline" type="button">Export</button>
+  </div>
+
+  <nav class="tabbar" aria-label="Sections">
+    <div role="tablist" id="tablist"></div>
+  </nav>
+
+  <main id="tab-panels"></main>
+
+  <footer class="app-footer">
+    <div class="wordmark ft-wordmark"><span class="wm-mark">AM/NS</span>
+      <span class="wm-sub">ArcelorMittal Nippon Steel India</span></div>
+    <span class="ft-tagline">Smarter Steels. Brighter Futures.</span>
+    <span id="ft-asof"></span>
+    <span id="ft-chip" class="chip"></span>
+    <span class="ft-conf">Confidential &mdash; illustrative mockup, contains no real employee data.</span>
+  </footer>
+</div>
+
+<!-- Print pack is pre-rendered here; visible only in @media print -->
+<div id="print-root" aria-hidden="true"></div>
+
+<!-- Overlay singletons -->
+<div id="popover-root"></div>
+<div id="modal-root"></div>
+
+<!--@inject:js-->
+</body>
+</html>

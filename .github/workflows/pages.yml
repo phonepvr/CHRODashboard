@@ -1,0 +1,104 @@
+name: build-verify-deploy
+
+on:
+  push:
+    branches: ["**"]
+  workflow_dispatch:
+
+concurrency:
+  group: pages-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Fetch + subset Albert Sans (OFL) — woff2 needs brotli
+        id: font
+        continue-on-error: true
+        run: |
+          pip install --quiet fonttools brotli
+          python build/fetch_subset_font.py --out build/font.b64
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Assemble single-file artifact
+        run: |
+          if [ -f build/font.b64 ]; then
+            node build/assemble.mjs --font build/font.b64 --out dist/index.html
+          else
+            echo "::warning::Font pipeline failed — shipping with system font stack"
+            node build/assemble.mjs --out dist/index.html
+          fi
+          node build/assemble.mjs --check-size dist/index.html --max-bytes 2621440
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dashboard-single-file
+          path: dist/index.html
+
+  verify:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: dashboard-single-file
+          path: dist
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+
+      - name: Playwright verification (zero-network + functional assertions)
+        run: npx playwright test
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: verify-screenshots
+          path: test-results/screens/
+          if-no-files-found: ignore
+
+  deploy:
+    needs: verify
+    if: github.ref_name == github.event.repository.default_branch
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: dashboard-single-file
+          path: site
+
+      - uses: actions/configure-pages@v5
+        with:
+          enablement: true
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+      - id: deployment
+        uses: actions/deploy-pages@v4
