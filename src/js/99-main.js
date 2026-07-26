@@ -232,8 +232,34 @@ const App = {
       if (tpl) { Exports.downloadTemplate(tpl.dataset.template); return; }
       if (e.target.closest('[data-template-all]')) { Exports.downloadAllTemplates(); return; }
       if (e.target.closest('[data-template-dict]')) { Exports.downloadDataDictionary(); return; }
+      const setAsset = e.target.closest('[data-setasset]');
+      if (setAsset) {
+        App.state.filters.asset = setAsset.dataset.setasset;
+        document.getElementById('sel-asset').value = setAsset.dataset.setasset;
+        UI.invalidateTabs();
+        refreshChrome();
+        return;
+      }
       const drill = e.target.closest('[data-drill]');
       if (drill && !e.target.closest('[data-info]')) openDrill(drill.dataset.drill);
+    });
+
+    // shared chart tooltip (marks carry data-tip)
+    const tip = document.createElement('div');
+    tip.id = 'tip';
+    tip.hidden = true;
+    document.body.appendChild(tip);
+    document.addEventListener('mouseover', (e) => {
+      const t = e.target.closest('[data-tip]');
+      if (t) { tip.textContent = t.dataset.tip; tip.hidden = false; }
+      else tip.hidden = true;
+    });
+    document.addEventListener('mousemove', (e) => {
+      if (tip.hidden) return;
+      const x = Math.min(e.clientX + 14, window.innerWidth - tip.offsetWidth - 8);
+      const y = Math.min(e.clientY + 14, window.innerHeight - tip.offsetHeight - 8);
+      tip.style.left = x + 'px';
+      tip.style.top = y + 'px';
     });
     document.addEventListener('keydown', (e) => {
       if ((e.key === 'Enter' || e.key === ' ') && e.target.matches('[data-drill][role="button"]')) {
