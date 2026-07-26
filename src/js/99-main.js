@@ -232,6 +232,12 @@ const App = {
       if (tpl) { Exports.downloadTemplate(tpl.dataset.template); return; }
       if (e.target.closest('[data-template-all]')) { Exports.downloadAllTemplates(); return; }
       if (e.target.closest('[data-template-dict]')) { Exports.downloadDataDictionary(); return; }
+      if (e.target.closest('[data-export-charts]')) { Exports.exportTabChartsPNG(); UI.Modal.close(); return; }
+      if (e.target.closest('[data-export-tab]')) { Exports.exportTabCSV(); return; }
+      if (e.target.closest('[data-export-all]')) { Exports.exportAllCSV(); return; }
+      if (e.target.closest('[data-export-print]')) { UI.Modal.close(); PrintPack.ensureFresh(); window.print(); return; }
+      const drillDl = e.target.closest('[data-drill-csv]');
+      if (drillDl && App.__lastDrill) { Exports.drillCSV(App.__lastDrill); return; }
       const setAsset = e.target.closest('[data-setasset]');
       if (setAsset) {
         App.state.filters.asset = setAsset.dataset.setasset;
@@ -274,7 +280,12 @@ const App = {
     if (!res.entry || !res.entry.drill || !res.available) return;
     const d = res.entry.drill(Compute.build(), res.ctx);
     if (!d) return;
-    UI.Modal.open({ title: d.title, html: UI.tableHTML(d.columns, d.rows) });
+    App.__lastDrill = d;
+    UI.Modal.open({
+      title: d.title,
+      html: `<p style="margin-bottom:8px"><button class="btn btn-outline" data-drill-csv>Download these rows → CSV</button></p>` +
+        UI.tableHTML(d.columns, d.rows)
+    });
   }
 
   /* ---------- boot ---------- */

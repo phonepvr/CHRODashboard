@@ -519,6 +519,33 @@ td.score-bad .score-pill { background: var(--red); color: var(--white); }
   color: var(--ink-70);
 }
 
+/* ---------- outlook ---------- */
+.proj-chip {
+  display: inline-block;
+  font-size: 9.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  padding: 1px 6px;
+  border: 1px dashed var(--ink-55);
+  color: var(--ink-70);
+  vertical-align: 2px;
+  margin-left: 6px;
+}
+.ol-method {
+  border-top: var(--hairline);
+  margin-top: 8px;
+  padding-top: 7px;
+  font-size: 11.5px;
+  color: var(--ink-70);
+}
+.ol-method .po-k { display: block; margin-top: 2px; }
+.ol-cost { display: grid; gap: 12px; padding: 8px 0 4px; }
+.ol-big { font-size: 26px; font-weight: 700; display: block; }
+.ol-slider { display: flex; align-items: center; gap: 10px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--ink-55); font-weight: 600; }
+.ol-slider input[type="range"] { flex: 1; accent-color: var(--red); }
+.ol-slider-val { font-size: 14px; font-weight: 700; color: var(--black); min-width: 48px; }
+
 .app-footer {
   display: flex;
   align-items: center;

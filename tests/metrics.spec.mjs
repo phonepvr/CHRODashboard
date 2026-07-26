@@ -102,10 +102,10 @@ test.describe('Phase 3 — registry, scorecard, data quality', () => {
     await loadMock(page);
     await page.click('#tab-quality');
     for (const dim of ['completeness', 'validity', 'consistency', 'uniqueness', 'timeliness', 'conformity']) {
-      await expect(page.locator('.tile-label', { hasText: dim })).toBeVisible();
+      await expect(page.locator('#panel-quality .tile-label', { hasText: dim })).toBeVisible();
     }
     // seeded flaws must surface: blank exit reasons + duplicate IDs + bad DOBs + stale IDPs
-    const issues = page.locator('.data-table');
+    const issues = page.locator('#panel-quality .data-table');
     await expect(issues).toContainText('Exit Reason');
     await expect(issues).toContainText('Duplicate');
     await expect(issues).toContainText('DOB');

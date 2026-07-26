@@ -77,6 +77,7 @@ const UI = (() => {
     App.state.renderedTabs.clear();
     Compute.invalidate();
     renderActiveTab();
+    if (typeof PrintPack !== 'undefined') PrintPack.markDirty();
   }
 
   function syncBandFilterApplicability() {
