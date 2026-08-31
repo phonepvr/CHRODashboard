@@ -16,9 +16,11 @@ test.describe('Phase 4 — charts & interactivity', () => {
 
   test('every tab renders its charts with direct labels; funnel and donut draw', async ({ page }) => {
     await loadMock(page);
-    // overview trend charts
-    expect(await page.locator('#charts-overview svg').count()).toBe(2);
+    // overview trend charts (headcount, attrition, joins-vs-exits, HC vs 12m ago)
+    expect(await page.locator('#charts-overview svg').count()).toBe(4);
     await expect(page.locator('#charts-overview .series-label', { hasText: 'Group' }).first()).toBeVisible();
+    // workforce demographics: age, tenure, band distributions
+    expect(await page.locator('#charts-overview-demo svg').count()).toBe(3);
     // attrition line + reasons + early turnover
     await page.click('#tab-attrition');
     expect(await page.locator('#panel-attrition .card svg').count()).toBeGreaterThanOrEqual(3);
@@ -85,10 +87,8 @@ test.describe('Phase 4 — charts & interactivity', () => {
     await loadMock(page);
     const before = await page.locator('#panel-overview .tile:visible').count();
     await page.fill('#search', 'attrition');
-    await page.waitForTimeout(250);
-    const after = await page.locator('#panel-overview .tile:visible').count();
-    expect(after).toBeLessThan(before);
-    expect(after).toBeGreaterThanOrEqual(1);
+    await expect.poll(() => page.locator('#panel-overview .tile:visible').count()).toBeLessThan(before);
+    expect(await page.locator('#panel-overview .tile:visible').count()).toBeGreaterThanOrEqual(1);
     await page.fill('#search', '');
   });
 });

@@ -110,6 +110,19 @@ const ExecSummary = (() => {
       return null;
     });
 
+    // 9b. performance-cycle discipline
+    R.push(() => {
+      const v = val('midyear_review_pct', asset);
+      if (v == null) return null;
+      const t = target('midyear_review_pct');
+      if (t != null && v < t - 5) {
+        const g = val('midyear_review_pct', 'Group');
+        const gap = !isGroup && g != null ? ` (Group: ${fmtPct(g, 0)})` : '';
+        return { type: 'watch', key: 'midyear_review_pct', text: `Mid-year reviews stand at ${fmtPct(v, 0)} against the ${fmtPct(t, 0)} bar${gap} — the cycle is slipping.` };
+      }
+      return null;
+    });
+
     // 10. superannuation pressure
     R.push(() => {
       const v = val('near_retirement_pct', asset);

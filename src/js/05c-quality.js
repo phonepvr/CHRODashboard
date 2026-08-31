@@ -81,7 +81,7 @@ const DataQuality = (() => {
     /* timeliness */
     const timelinessParts = [];
     const ctx = Compute.ctxNow();
-    for (const [id, rows] of [['production_safety', m.prod], ['contract_attendance', m.cAtt], ['contract_compliance', m.cComp]]) {
+    for (const [id, rows] of [['production_safety', m.prod], ['contract_attendance', m.cAtt], ['contract_compliance', m.cComp], ['wellbeing', m.well]]) {
       if (!App.state.datasets.has(id) || !rows.length) continue;
       const latest = Compute.latestPanelMonth(rows, { asset: 'Group' });
       const lag = AS_OF_MONTH - latest;

@@ -351,7 +351,7 @@ main { padding: 14px 16px 40px; min-height: 55vh; }
 }
 .card-title { font-size: 12.5px; font-weight: 700; padding-right: 26px; }
 .card-sub { font-size: 11px; color: var(--ink-55); margin-bottom: 4px; }
-.card svg { display: block; width: 100%; height: auto; }
+.card svg { display: block; width: 100%; max-width: 760px; height: auto; }
 .chart-note { font-size: 11px; color: var(--ink-55); margin-top: 4px; }
 
 svg .ax { font-family: var(--font-sans); font-size: 10px; fill: var(--ink-55); }

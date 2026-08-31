@@ -27,11 +27,19 @@ const Mock = (() => {
     ['Performance', 0.07], ['Absconding', 0.03], ['Career change', 0.05]
   ];
 
+  // [programme, category] — categories drive the HSE / compliance coverage metrics
   const PROGRAMMES = [
-    'Safety Leadership', 'First-time Manager', 'Advanced Metallurgy', 'Lean Six Sigma',
-    'Digital & Analytics Basics', 'Finance for Non-Finance', 'Contract Management',
-    'Leadership Pipeline', 'Technical Skills Refresher', 'Communication Skills'
+    ['Safety Leadership', 'HSE'], ['First-time Manager', 'Behavioural'],
+    ['Advanced Metallurgy', 'Technical/Functional'], ['Lean Six Sigma', 'Technical/Functional'],
+    ['Digital & Analytics Basics', 'Technical/Functional'], ['Finance for Non-Finance', 'Technical/Functional'],
+    ['Contract Management', 'Technical/Functional'], ['Leadership Pipeline', 'Behavioural'],
+    ['Technical Skills Refresher', 'Technical/Functional'], ['Communication Skills', 'Behavioural'],
+    ['Working at Height & Confined Spaces', 'HSE'], ['Emergency Response', 'HSE'],
+    ['Code of Conduct', 'Compliance'], ['Ethics Awareness', 'Compliance'], ['POSH Awareness', 'Compliance'],
+    ['New Joiner Induction', 'Induction']
   ];
+
+  const AWARD_NAMES = ['Spot Award', 'Quarterly Excellence', 'Safety Champion', 'Value Champion', 'Team of the Month', 'Long Service'];
 
   const SYL1 = ['A.', 'B.', 'D.', 'G.', 'H.', 'J.', 'K.', 'M.', 'N.', 'P.', 'R.', 'S.', 'T.', 'V.'];
   const SYL2 = ['Sharma', 'Patel', 'Rao', 'Singh', 'Iyer', 'Das', 'Mehta', 'Nair', 'Kulkarni', 'Reddy',
@@ -105,7 +113,9 @@ const Mock = (() => {
         if (isExited) {
           doj = exitDay - Math.round(tenure * 365.25) - rint(rng, 0, 30);
         } else {
-          doj = AS_OF_DAY - Math.round(tenure * 365.25) - rint(rng, 0, 90);
+          // tenure is already a continuous draw — no extra jitter, or the most
+          // recent weeks develop an artificial joins dead-zone in the trend
+          doj = AS_OF_DAY - Math.round(tenure * 365.25);
         }
         if (doj > AS_OF_DAY) doj = AS_OF_DAY - rint(rng, 10, 200);
 
@@ -242,17 +252,80 @@ const Mock = (() => {
       if (rng() < p) {
         const n = 1 + (rng() < 0.35 ? 1 : 0) + (e.tt && rng() < 0.4 ? 1 : 0);
         for (let i = 0; i < n; i++) {
+          const [programme, category] = pick(rng, PROGRAMMES);
+          const days = pickW(rng, [[0.5, 0.25], [1, 0.35], [2, 0.25], [3, 0.1], [5, 0.05]]);
+          const completed = rng() < 0.86;
           events.push({
             empId: e.id,
-            programme: pick(rng, PROGRAMMES),
+            programme, category,
             day: monthEndDay(W_START + Math.floor(rng() * CONFIG.historyMonths)) - rint(rng, 0, 27),
-            days: pickW(rng, [[0.5, 0.25], [1, 0.35], [2, 0.25], [3, 0.1], [5, 0.05]]),
-            mode: rng() < 0.55 ? 'Classroom' : 'E-learning'
+            days,
+            mode: category === 'Compliance' ? 'E-learning' : (rng() < 0.55 ? 'Classroom' : 'E-learning'),
+            completed,
+            // feedback only exists for completed programmes; ~15% never file it
+            feedback: completed && rng() < 0.85 ? Math.round((3.4 + rng() * 1.5) * 10) / 10 : null,
+            cost: Math.round(days * (category === 'Compliance' ? 300 : rint(rng, 1200, 4500)))
           });
         }
       }
     }
     return events;
+  }
+
+  /* ---- performance-management cycle status (goal setting + mid-year review) ---- */
+  function genPms(employees) {
+    const rng = rngFor('pms');
+    // story beat: goal setting is a solved habit; the mid-year review drags,
+    // unevenly by asset — one asset clearly behind the pack
+    const goalP = { Hazira: 0.985, Paradeep: 0.97, Vizag: 0.98, Kirandul: 0.90 };
+    const midP = { Hazira: 0.62, Paradeep: 0.38, Vizag: 0.55, Kirandul: 0.33 };
+    const rows = [];
+    for (const e of employees) {
+      if (e.isExited || e.isTrainee) continue;
+      const goal = rng() < (goalP[e.asset] ?? 0.95);
+      rows.push({ empId: e.id, goal, mid: goal && rng() < (midP[e.asset] ?? 0.5) });
+    }
+    return rows;
+  }
+
+  /* ---- recognition awards (counts; unique coverage ~55–65% trailing 12m) ---- */
+  function genRecognition(employees) {
+    const rng = rngFor('recognition');
+    const rows = [];
+    for (const e of employees) {
+      if (e.isExited) continue;
+      if (rng() < 0.58) {
+        const n = 1 + (rng() < 0.4 ? 1 : 0) + (rng() < 0.15 ? 2 : 0);
+        for (let i = 0; i < n; i++) {
+          rows.push({
+            empId: e.id,
+            day: monthEndDay(AS_OF_MONTH - Math.floor(rng() * 12)) - rint(rng, 0, 27),
+            name: pick(rng, AWARD_NAMES)
+          });
+        }
+      }
+    }
+    return rows;
+  }
+
+  /* ---- wellbeing: asset-month AGGREGATES only (no individual rows by design) ---- */
+  function genWellbeing() {
+    const rng = rngFor('wellbeing');
+    const rows = [];
+    for (const asset of CONFIG.assets) {
+      const P = ASSET_PROFILE[asset];
+      for (let mi = W_START; mi <= AS_OF_MONTH; mi++) {
+        const sessions = Math.max(0, Math.round(P.perm * 0.007 * (0.6 + rng() * 0.9)));
+        rows.push({
+          asset, mi,
+          sessions,
+          unique: Math.max(0, Math.round(sessions * (0.55 + rng() * 0.25))),
+          distress: rng() < 0.07 ? 1 : 0,
+          attendees: rng() < 0.55 ? rint(rng, 20, Math.max(30, Math.round(P.perm * 0.05))) : 0
+        });
+      }
+    }
+    return rows;
   }
 
   function genIdp(employees) {
@@ -382,7 +455,11 @@ const Mock = (() => {
       ['time_to_fill_median', 75, 'lower'], ['promo_coverage_2y', 40, 'higher'], ['promo_recency_median', 3, 'lower'],
       ['tonnes_per_emp', 350, 'higher'], ['cost_per_tonne', 2600, 'lower'], ['ltifr', 0.3, 'lower'],
       ['contract_attendance_pct', 92, 'higher'], ['contract_compliance_idx', 95, 'higher'],
-      ['ecost_pct_revenue', 4.5, 'lower']
+      ['ecost_pct_revenue', 4.5, 'lower'],
+      ['goal_setting_pct', 100, 'higher'], ['midyear_review_pct', 90, 'higher'],
+      ['learning_feedback_avg', 4.2, 'higher'], ['lnd_cost_per_emp', 4000, 'lower'],
+      ['safety_learning_days', 1.2, 'higher'], ['compliance_coverage', 90, 'higher'],
+      ['recognition_coverage', 60, 'higher'], ['attr_voluntary', 8, 'lower']
     ];
   }
 
@@ -398,6 +475,9 @@ const Mock = (() => {
     const lms = genLms(employees);
     const succession = genSuccession(employees);
     const { prod, cAtt, cComp } = genPanels(employees);
+    const pms = genPms(employees);
+    const recognition = genRecognition(employees);
+    const wellbeing = genWellbeing();
     const flawRng = rngFor('flaws');
 
     const files = new Map();
@@ -434,7 +514,17 @@ const Mock = (() => {
       a.id, a.reqId, a.empId, fmtDMY(a.appDay), a.status, fmtDMY(a.lastAction)
     ]));
 
-    emit('learning_events', learning.map((l) => [l.empId, l.programme, fmtDMY(l.day), l.days, l.mode]));
+    emit('learning_events', learning.map((l) => [
+      l.empId, l.programme, fmtDMY(l.day), l.days, l.mode,
+      l.category, l.completed ? 'Completed' : 'In Progress',
+      l.feedback == null ? '' : l.feedback, l.cost
+    ]));
+
+    emit('pms_status', pms.map((r) => [r.empId, F(r.goal), F(r.mid)]));
+
+    emit('recognition', recognition.map((r) => [r.empId, fmtDMY(r.day), r.name]));
+
+    emit('wellbeing', wellbeing.map((r) => [r.asset, monthIdxToMY(r.mi), r.sessions, r.unique, r.distress, r.attendees]));
 
     emit('idp_status', idp.map((r) => [r.empId, F(r.has), r.impl == null ? '' : r.impl, r.upd ? fmtDMY(r.upd) : '']));
 

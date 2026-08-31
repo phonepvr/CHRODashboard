@@ -71,6 +71,9 @@ const Compute = (() => {
       prod: ds('production_safety') || [],
       cAtt: ds('contract_attendance') || [],
       cComp: ds('contract_compliance') || [],
+      pms: ds('pms_status') || [],
+      recog: ds('recognition') || [],
+      well: ds('wellbeing') || [],
       targets,
       has, SENIOR_GRADES
     };
@@ -164,6 +167,31 @@ const Compute = (() => {
       x.__emp.employee_class === 'Permanent' && empMatch(x.__emp, ctx) &&
       dayToMonthIdx(x.exit_date) === mi).length;
     return n / hc * 12 * 100;
+  }
+
+  // annualised attrition over the period, restricted to exits matching pred
+  function annualisedAttritionWhere(m, ctx, pred) {
+    const avg = avgHeadcount(m, ctx, 'Permanent');
+    if (!avg) return null;
+    const n = exitsInPeriod(m, ctx, 'Permanent').filter(pred).length;
+    return n / avg * (12 / ctx.periodMonths) * 100;
+  }
+
+  // monthly annualised attrition restricted to exits matching pred (for splits)
+  function monthAttritionRateWhere(m, ctx, mi, pred) {
+    const hc = activesAt(m, ctx, 'Permanent', monthEndDay(mi)).length;
+    if (!hc) return null;
+    const n = m.exits.filter((x) => x.exit_date != null && x.__emp &&
+      x.__emp.employee_class === 'Permanent' && empMatch(x.__emp, ctx) &&
+      dayToMonthIdx(x.exit_date) === mi && pred(x)).length;
+    return n / hc * 12 * 100;
+  }
+
+  // joins in a given month (for the hiring trend), optional class filter
+  function joinsInMonth(m, ctx, mi, klass) {
+    return m.emps.filter((e) =>
+      (klass == null || e.employee_class === klass) &&
+      empMatch(e, ctx) && e.doj != null && dayToMonthIdx(e.doj) === mi).length;
   }
 
   // fiscal YTD (Apr–as-of) annualised
@@ -322,6 +350,36 @@ const Compute = (() => {
     return rows.reduce((s, r) => s + r[key], 0);
   }
 
+  /* ---------- performance cycle / recognition / wellbeing ---------- */
+
+  function pmsCompletion(m, ctx, key) {
+    if (!m.has('pms_status')) return null;
+    const rows = m.pms.filter((r) => {
+      const e = m.empById.get(r.employee_id);
+      return e ? empMatch(e, ctx) : ctx.asset === 'Group';
+    });
+    if (!rows.length) return null;
+    return rows.filter((r) => r[key]).length / rows.length * 100;
+  }
+
+  function recognitionCoverage(m, ctx) {
+    if (!m.has('recognition')) return null;
+    const pop = actives(m, ctx, null);
+    if (!pop.length) return null;
+    const from = monthEndDay(ctx.endMonth - 12) + 1;
+    const awarded = new Set(m.recog
+      .filter((r) => r.award_date != null && r.award_date >= from && r.award_date <= ctx.asOfDay)
+      .map((r) => r.employee_id));
+    return pop.filter((e) => awarded.has(e.employee_id)).length / pop.length * 100;
+  }
+
+  function wellbeingSum(m, ctx, key) {
+    if (!m.has('wellbeing')) return null;
+    const rows = panelRowsInPeriod(m.well, ctx).filter((r) => r[key] != null);
+    if (!rows.length) return null;
+    return rows.reduce((s, r) => s + r[key], 0);
+  }
+
   /* ---------- data-quality note helpers (tile-level) ---------- */
 
   function blankShareNote(m, ctx, dsId, key, label) {
@@ -420,6 +478,8 @@ const Compute = (() => {
     build, ctxNow, metric, metricAvailable, priorValue, groupValue,
     actives, activesAt, exitsInPeriod, joinsInWindow, monthlySeries, avgHeadcount,
     annualisedAttrition, monthAttritionRate, ytdAttrition,
+    annualisedAttritionWhere, monthAttritionRateWhere, joinsInMonth,
+    pmsCompletion, recognitionCoverage, wellbeingSum,
     cohortFilter, learningCoverage, learningDaysPerEmp,
     positions, cpPositions, succMatch, seniorReq, reqsClosedInPeriod,
     contractHeadcount, contractAvgHeadcount, contractAttendancePct, complianceShare, inductionAvg, contractCompositeIdx,

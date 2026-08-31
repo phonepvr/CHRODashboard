@@ -14,6 +14,8 @@ const ENUMS = {
   closureMode: ['Internal', 'External', 'Campus', 'Boomerang'],
   appStatus: ['Applied', 'Shortlisted', 'Interviewed', 'Offered', 'Rejected', 'Withdrawn'],
   learnMode: ['Classroom', 'E-learning'],
+  learnCategory: ['Technical/Functional', 'Behavioural', 'HSE', 'Induction', 'Compliance'],
+  completionStatus: ['Completed', 'In Progress'],
   positionLevel: ['GM', 'CP'],
   readiness: ['Ready Now', '1-2 Years'],
   direction: ['higher', 'lower'],
@@ -96,13 +98,17 @@ const SCHEMAS = {
 
   learning_events: {
     label: 'Learning events',
-    desc: 'One row per employee per learning programme attended.',
+    desc: 'One row per employee per learning programme attended. Category, completion, feedback and cost columns are optional but unlock the L&D depth metrics.',
     columns: [
       { name: 'Employee ID', key: 'employee_id', type: 'id', required: true, desc: 'Participant', ex: ['AMNS-HZ-00135', 'AMNS-KD-00088', 'AMNS-VZ-00018'] },
       { name: 'Programme', key: 'programme', type: 'text', required: true, desc: 'Programme name', ex: ['Safety Leadership', 'Data Analytics Basics', 'First-time Manager'] },
       { name: 'Start Date', key: 'start_date', type: 'date', required: true, desc: 'Programme start date', ex: ['12-05-2025', '03-06-2025', '21-04-2025'] },
       { name: 'Person-Days', key: 'person_days', type: 'num', required: true, desc: 'Training person-days for this participant', ex: ['2', '0.5', '3'] },
-      { name: 'Mode', key: 'mode', type: 'enum', enum: 'learnMode', required: false, desc: 'Classroom or E-learning', ex: ['Classroom', 'E-learning', 'Classroom'] }
+      { name: 'Mode', key: 'mode', type: 'enum', enum: 'learnMode', required: false, desc: 'Classroom or E-learning', ex: ['Classroom', 'E-learning', 'Classroom'] },
+      { name: 'Category', key: 'category', type: 'enum', enum: 'learnCategory', required: false, desc: 'Programme category (drives HSE/compliance coverage metrics)', ex: ['HSE', 'Technical/Functional', 'Behavioural'] },
+      { name: 'Completion Status', key: 'completion', type: 'enum', enum: 'completionStatus', required: false, desc: 'Completed or In Progress', ex: ['Completed', 'Completed', 'In Progress'] },
+      { name: 'Feedback Score', key: 'feedback', type: 'num', required: false, desc: 'Participant feedback, 1–5', ex: ['4.5', '4', ''] },
+      { name: 'Cost', key: 'cost', type: 'num', required: false, desc: 'Cost attributed to this participant (₹)', ex: ['8000', '1500', '12000'] }
     ]
   },
 
@@ -194,6 +200,40 @@ const SCHEMAS = {
       { name: 'Wage Payment On-Time Flag', key: 'wage_flag', type: 'flag', required: true, desc: 'Wages paid on time (Y/N)', ex: ['Y', 'N', 'Y'] },
       { name: 'Labour Licence Valid Flag', key: 'licence_flag', type: 'flag', required: true, desc: 'Labour licence valid for the month (Y/N)', ex: ['Y', 'Y', 'Y'] },
       { name: 'Safety Induction Coverage %', key: 'induction_pct', type: 'pct', required: true, desc: '% of deployed workers with valid safety induction', ex: ['96', '88', '92'] }
+    ]
+  },
+
+  pms_status: {
+    label: 'Performance management status',
+    desc: 'One row per on-roll employee in the current performance cycle. Drives goal-setting and mid-year review completion metrics.',
+    keyColumn: 'employee_id',
+    columns: [
+      { name: 'Employee ID', key: 'employee_id', type: 'id', required: true, desc: 'Employee in the cycle', ex: ['AMNS-HZ-00135', 'AMNS-PD-00072', 'AMNS-VZ-00018'] },
+      { name: 'Goal Setting Complete Flag', key: 'goal_flag', type: 'flag', required: true, desc: 'Goals agreed and locked on the system (Y/N)', ex: ['Y', 'Y', 'N'] },
+      { name: 'Mid-Year Review Complete Flag', key: 'midyear_flag', type: 'flag', required: false, desc: 'Mid-year review completed (Y/N)', ex: ['Y', 'N', 'N'] }
+    ]
+  },
+
+  recognition: {
+    label: 'Recognition awards',
+    desc: 'One row per award given in the history window. Drives recognition coverage (unique employees recognised).',
+    columns: [
+      { name: 'Employee ID', key: 'employee_id', type: 'id', required: true, desc: 'Awarded employee', ex: ['AMNS-HZ-00135', 'AMNS-KD-00088', 'AMNS-HZ-00135'] },
+      { name: 'Award Date', key: 'award_date', type: 'date', required: true, desc: 'Date of the award', ex: ['14-05-2025', '02-06-2025', '20-06-2025'] },
+      { name: 'Award Name', key: 'award_name', type: 'text', required: false, desc: 'Award / recognition programme name', ex: ['Spot Award', 'Safety Champion', 'Quarterly Excellence'] }
+    ]
+  },
+
+  wellbeing: {
+    label: 'Wellbeing (aggregates)',
+    desc: 'One row per asset per month, AGGREGATE COUNTS ONLY — no individual health or counselling data ever enters this dashboard.',
+    columns: [
+      { name: 'Asset', key: 'asset', type: 'enum', enum: 'asset', required: true, desc: 'Asset', ex: ['Hazira', 'Paradeep', 'Vizag'] },
+      { name: 'Month', key: 'month', type: 'month', required: true, desc: 'Month (MM-YYYY)', ex: ['05-2025', '05-2025', '06-2025'] },
+      { name: 'Counselling Sessions', key: 'sessions', type: 'int', required: true, desc: 'Counselling sessions held (aggregate count)', ex: ['42', '11', '9'] },
+      { name: 'Unique Employees Counselled', key: 'unique_counselled', type: 'int', required: false, desc: 'Distinct employees who used counselling (aggregate count)', ex: ['25', '8', '6'] },
+      { name: 'Distress Cases', key: 'distress', type: 'int', required: false, desc: 'Severe/distress cases escalated (aggregate count)', ex: ['0', '1', '0'] },
+      { name: 'Wellness Programme Attendees', key: 'wellness_attendees', type: 'int', required: false, desc: 'Attendees at wellness sessions/webinars (aggregate count)', ex: ['180', '45', '60'] }
     ]
   }
 };
