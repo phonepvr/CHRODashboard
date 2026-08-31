@@ -249,6 +249,29 @@ const Mock = (() => {
       if (e.isExited) continue;
       // coverage propensity by cohort — VP+ deliberately low (mirrors a classic CHRO pain point)
       const p = e.tt ? 0.8 : e.isTrainee ? 0.9 : e.band === 'VP & above' ? 0.3 : e.band === 'AM-GM' ? 0.62 : 0.55;
+      // mandatory-programme layer (trailing 12 months): the annual safety
+      // refresher and the compliance e-module run at near-universal scale in a
+      // real plant — modelled separately from elective programmes. Seniors are
+      // deliberately worse at showing up (the VP+ gap the exec summary flags).
+      const mand = e.band === 'VP & above' ? 0.5 : 1;
+      if (rng() < 0.62 * mand) {
+        events.push({
+          empId: e.id, programme: 'General Safety Awareness', category: 'HSE',
+          day: monthEndDay(AS_OF_MONTH - Math.floor(rng() * 12)) - rint(rng, 0, 27),
+          days: pickW(rng, [[1, 0.6], [2, 0.4]]), mode: 'Classroom',
+          completed: true, feedback: rng() < 0.4 ? Math.round((3.6 + rng() * 1.2) * 10) / 10 : null,
+          cost: rint(rng, 400, 900)
+        });
+      }
+      if (rng() < 0.55 * mand) {
+        events.push({
+          empId: e.id, programme: pick(rng, ['Code of Conduct', 'Ethics Awareness', 'POSH Awareness']),
+          category: 'Compliance',
+          day: monthEndDay(AS_OF_MONTH - Math.floor(rng() * 12)) - rint(rng, 0, 27),
+          days: 0.25, mode: 'E-learning',
+          completed: rng() < 0.93, feedback: null, cost: 300
+        });
+      }
       if (rng() < p) {
         const n = 1 + (rng() < 0.35 ? 1 : 0) + (e.tt && rng() < 0.4 ? 1 : 0);
         for (let i = 0; i < n; i++) {
