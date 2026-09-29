@@ -1,0 +1,153 @@
+/* ============================================================
+   Movement tab (R3) — flow heat-tables, employee history
+   timeline, lookup controls. Smart Red carries emphasis (heat
+   steps, promotions); black/grey carry context; sharp edges.
+   ============================================================ */
+
+.mv-grid-1 { grid-template-columns: 1fr; }
+/* seven period counts sit on one row at desktop width */
+#panel-movement .tile-grid { grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); }
+.mv-subhead {
+  font-size: 10.5px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--ink-55);
+  margin: 8px 0 2px;
+}
+.mv-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+/* ---------- from → to heat-tables ---------- */
+.mv-heat { border-collapse: collapse; font-size: 12px; margin-top: 4px; }
+.mv-heat th {
+  font-size: 10.5px;
+  font-weight: 600;
+  color: var(--ink-70);
+  padding: 4px 7px;
+  white-space: nowrap;
+  text-align: right;
+}
+.mv-heat thead th { border-bottom: 2px solid var(--black); vertical-align: bottom; }
+.mv-heat tbody th, .mv-heat tfoot th { text-align: left; border-right: 1px solid var(--ink-20); }
+.mv-heat .mv-corner { text-align: left; color: var(--ink-55); font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; font-size: 9.5px; }
+.mv-heat td {
+  min-width: 46px;
+  padding: 5px 7px;
+  text-align: right;
+  font-weight: 600;
+  color: var(--black);
+  border: 1px solid var(--white);
+}
+.mv-heat td.mv-h0 { background: var(--ink-05); }
+.mv-heat td.mv-h1 { background: var(--red-10); }
+.mv-heat td.mv-h2 { background: var(--red-20); }
+.mv-heat td.mv-h3 { background: var(--red-40); }
+.mv-heat td.mv-h4 { background: var(--red-60); }
+.mv-heat td.mv-h5 { background: var(--red); font-weight: 700; }
+.mv-heat td.is-supp { background: var(--ink-10); color: var(--ink-70); font-weight: 600; }
+.mv-heat td.mv-diag { background: var(--white); color: var(--ink-30); text-align: center; }
+.mv-heat .mv-tot { font-weight: 700; background: var(--white); border-left: 2px solid var(--black); }
+.mv-heat tfoot td, .mv-heat tfoot th { border-top: 2px solid var(--black); }
+.mv-heat tfoot .mv-tot { border-left: 1px solid var(--white); }
+.mv-heat tfoot td:last-child { border-left: 2px solid var(--black); }
+.mv-heat td[data-tip] { cursor: default; }
+
+/* ---------- details table: bounded height, sticky header ---------- */
+.mv-details .table-scroll { max-height: 380px; overflow: auto; }
+.mv-details .data-table thead th { position: sticky; top: 0; background: var(--white); z-index: 1; }
+
+/* ---------- lookup controls ---------- */
+.mv-lookup {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 8px 12px;
+  margin: 6px 0 10px;
+}
+.mv-ctl input, .mv-ctl select { min-width: 250px; }
+.mv-hint { font-size: 11px; color: var(--ink-55); flex-basis: 100%; }
+.mv-lookup.is-disabled .ctl input { background: var(--ink-05); color: var(--ink-40); cursor: not-allowed; }
+.mv-lookup .btn[disabled] { background: var(--ink-20); border-color: var(--ink-20); color: var(--ink-55); cursor: not-allowed; }
+.mv-withheld { justify-content: flex-start; gap: 8px; text-align: left; min-height: 64px; }
+
+/* ---------- timeline ---------- */
+.mv-tl-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 10px;
+  font-size: 13px;
+  padding-bottom: 4px;
+  border-bottom: 2px solid var(--black);
+}
+.mv-tl-id { font-weight: 700; font-size: 15px; letter-spacing: 0.01em; }
+.mv-tl-status {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  padding: 1px 6px;
+  border: 1px solid var(--black);
+}
+.mv-tl-status.is-exited { border-color: var(--ink-40); color: var(--ink-55); }
+.mv-tl-facts { display: flex; flex-wrap: wrap; gap: 4px 16px; font-size: 11.5px; color: var(--ink-70); margin: 5px 0 2px; }
+
+.mv-tl {
+  list-style: none;
+  margin: 6px 0 0;
+  padding: 0 0 0 22px;
+  position: relative;
+}
+.mv-tl::before {
+  content: "";
+  position: absolute;
+  left: 6px; top: 10px; bottom: 10px;
+  width: 2px;
+  background: var(--ink-20);
+}
+.mv-ev {
+  position: relative;
+  display: grid;
+  grid-template-columns: 92px minmax(150px, 190px) 1fr;
+  gap: 2px 12px;
+  align-items: baseline;
+  padding: 6px 0;
+  border-bottom: var(--hairline);
+  font-size: 12.5px;
+}
+.mv-ev::before {
+  content: "";
+  position: absolute;
+  left: -20px; top: 10px;
+  width: 10px; height: 10px;
+  background: var(--white);
+  border: 2px solid var(--ink-40);
+}
+.mv-ev-join::before, .mv-ev-exit::before, .mv-ev-now::before { background: var(--black); border-color: var(--black); }
+.mv-ev-promo::before { background: var(--red); border-color: var(--red); }
+.mv-ev-now { border-bottom: 0; }
+.mv-date { font-weight: 600; color: var(--ink-70); white-space: nowrap; }
+.mv-kind { font-weight: 700; }
+.mv-sub { font-weight: 500; font-size: 11px; color: var(--ink-55); margin-left: 3px; }
+.mv-detail { color: var(--ink-80); display: flex; flex-wrap: wrap; gap: 2px 14px; }
+.mv-chg-k { font-size: 10px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--ink-55); font-weight: 600; margin-right: 2px; }
+.mv-arrow { color: var(--ink-55); }
+.mv-ev-promo .mv-arrow { color: var(--red); }
+.mv-badge {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 0 5px;
+  font-size: 9.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--red);
+  border: 1px solid var(--red);
+  vertical-align: 1px;
+}
+
+@media (max-width: 700px) {
+  .mv-ev { grid-template-columns: 1fr; }
+  .mv-ctl input, .mv-ctl select { min-width: 0; width: 100%; }
+  .mv-ctl { flex: 1 1 100%; }
+}

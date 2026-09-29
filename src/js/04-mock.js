@@ -853,29 +853,51 @@ const Mock = (() => {
 
   // Movements unwind backwards from the CURRENT master state, so the latest
   // "To" always equals the employee master and every earlier "To" equals the
-  // next movement's "From".
+  // next movement's "From". Realism rules (own stream 'movements-v2'):
+  //  - a Promotion is always a one-rung step up the level ladder. At the entry
+  //    rung (M-11) nothing sits below, so the master's Last Promotion Date there
+  //    is an in-level grade step, recorded as a Re-designation (level
+  //    unchanged); an earlier promotion is drawn only while a rung is left.
+  //  - entities follow sites: Company B is the Kirandul entity and Company C the
+  //    Hazira shared-services units. Location transfers run between Company A
+  //    sites; a company transfer either crosses to/from Kirandul (the asset
+  //    changes too) or moves in/out of Hazira shared services (same site).
+  //  - origin sites are weighted by site size; a function transfer carries a
+  //    segment the origin function can hold; a segment change needs a function
+  //    with units in both segments.
   function genMovements(allEmps) {
-    const rng = rngFor('movements');
+    const rng = rngFor('movements-v2');
     const rows = [];
     const winStart = monthEndDay(W_START - 1) + 1;
-    const TYPES = [['Transfer – Location', 1.4], ['Transfer – Function', 1.8], ['Transfer – Company', 0.5], ['Re-designation', 2.0], ['Segment Change', 1.0]];
+    const TYPES = [['Transfer – Location', 1.4], ['Transfer – Function', 1.8], ['Transfer – Company', 0.5], ['Re-designation', 1.0], ['Segment Change', 1.6]];
     const annualP = TYPES.reduce((s, [, w]) => s + w, 0) / 100;
     const typePairs = TYPES.map(([t, w]) => [t, w / (annualP * 100)]);
     const funcs = FUNCTIONS.map(([f]) => f);
+    const ENTRY = CONFIG.levels.length - 2;   // index of M-11; GET (trainee) sits outside the promotion ladder
+    const rungBelow = (lv) => {
+      const i = CONFIG.levels.indexOf(lv);
+      return i >= 0 && i < ENTRY ? CONFIG.levels[i + 1] : null;
+    };
+    const A_SITES = CONFIG.assets.filter((a) => a !== 'Kirandul');
+    const bySize = (list) => {
+      const tot = list.reduce((s, a) => s + ASSET_PROFILE[a].perm, 0);
+      return list.map((a) => [a, ASSET_PROFILE[a].perm / tot]);
+    };
+    const SS_FUNCS = [...new Set(ORG.filter((o) => o.company === 'Company C').map((o) => o.func))];
+    const segsOf = new Map(funcs.map((f) => [f, [...new Set(ORG.filter((o) => o.func === f).map((o) => o.seg))]]));
     for (const e of allEmps) {
       const endDay = e.exitDay ?? AS_OF_DAY;
       const events = [];
       // a Last Promotion Date on the joining day is the joining grade, not a movement
       if (e.lastPromo != null && e.lastPromo > e.doj && e.lastPromo <= endDay) {
-        events.push({ day: e.lastPromo, type: 'Promotion' });
+        events.push({ day: e.lastPromo, type: 'Promotion', master: true });
         if (e.lastPromo - e.doj > 4 * 365 && rng() < 0.5) {
           events.push({ day: e.doj + rint(rng, 730, e.lastPromo - e.doj - 365), type: 'Promotion' });
         }
       }
       const from = Math.max(winStart, e.doj + 180);
       if (!e.isTrainee && from < endDay && rng() < annualP * (endDay - from) / 365.25) {
-        const type = pickW(rng, typePairs);
-        if (type !== 'Segment Change' || e.seg) events.push({ day: rint(rng, from, endDay - 1), type });
+        events.push({ day: rint(rng, from, endDay - 1), type: pickW(rng, typePairs) });
       }
       if (!events.length) continue;
       events.sort((a, b) => b.day - a.day);
@@ -884,12 +906,32 @@ const Mock = (() => {
       let st = { asset: e.asset, func: e.func, level: e.level, company: e.company, seg: e.seg };
       for (const ev of events) {
         const fr = { ...st };
-        if (ev.type === 'Promotion') fr.level = levelBelow(st.level);
-        else if (ev.type === 'Transfer – Location') fr.asset = pick(rng, CONFIG.assets.filter((a) => a !== st.asset));
-        else if (ev.type === 'Transfer – Function') fr.func = pick(rng, funcs.filter((f) => f !== st.func));
-        else if (ev.type === 'Transfer – Company') fr.company = st.company === 'Company A' ? pick(rng, ['Company B', 'Company C']) : 'Company A';
-        else if (ev.type === 'Segment Change') fr.seg = st.seg === 'Projects' ? 'Operations' : 'Projects';
-        rows.push({ empId: e.id, day: ev.day, type: ev.type, from: fr, to: st });
+        let type = ev.type;
+        if (type === 'Promotion') {
+          const below = rungBelow(st.level);
+          if (below) fr.level = below;
+          else if (ev.master) type = 'Re-designation';
+          else continue;
+        } else if (type === 'Transfer – Location' && (st.company !== 'Company A' || !A_SITES.includes(st.asset))) {
+          type = 'Transfer – Company';   // Kirandul / shared-services staff arrive by inter-company transfer
+        }
+        if (type === 'Transfer – Location') {
+          fr.asset = pickW(rng, bySize(A_SITES.filter((a) => a !== st.asset)));
+        } else if (type === 'Transfer – Function') {
+          const pool = st.company === 'Company C' ? SS_FUNCS : funcs;
+          fr.func = pick(rng, pool.filter((f) => f !== st.func));
+          const segs = segsOf.get(fr.func) || [];
+          if (st.seg && segs.length && !segs.includes(st.seg)) fr.seg = segs[0];
+        } else if (type === 'Transfer – Company') {
+          if (st.company === 'Company B') { fr.company = 'Company A'; fr.asset = pickW(rng, bySize(A_SITES)); }
+          else if (st.company === 'Company C') fr.company = 'Company A';
+          else if (st.asset === 'Hazira' && SS_FUNCS.includes(st.func) && rng() < 0.5) fr.company = 'Company C';
+          else { fr.company = 'Company B'; fr.asset = 'Kirandul'; }
+        } else if (type === 'Segment Change') {
+          if (!st.seg || (segsOf.get(st.func) || []).length < 2) continue;
+          fr.seg = st.seg === 'Projects' ? 'Operations' : 'Projects';
+        }
+        rows.push({ empId: e.id, day: ev.day, type, from: fr, to: st });
         st = fr;
       }
     }
