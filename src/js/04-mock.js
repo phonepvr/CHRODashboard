@@ -984,6 +984,43 @@ const Mock = (() => {
         }
       }
     }
+    return extendStatutory(rows);
+  }
+
+  // Realism pass on the statutory register — NEW streams only, so the rows above
+  // keep their values. (1) Projects (capex construction) sites keep their own
+  // contract-labour and minimum-wage registers. (2) A few misses stay open well
+  // past due — renewals, returns and project cess only (remittances clear within
+  // the month), less often the older they are — so the ageing view has a tail.
+  function extendStatutory(rows) {
+    const rng = rngFor('statutory-projects');
+    const ON_TIME = { Hazira: 0.9, Paradeep: 0.78, Vizag: 0.86, Kirandul: 0.82 };
+    for (const asset of CONFIG.assets) {
+      for (let mi = AS_OF_MONTH - 11; mi <= AS_OF_MONTH; mi++) {
+        for (const item of ['Contract labour (CLRA) register', 'Minimum wages register']) {
+          const due = monthEndDay(mi) + 10;
+          let status, done = null;
+          if (due > AS_OF_DAY) {
+            if (rng() < 0.25) { status = 'On time'; done = Math.min(AS_OF_DAY, due - rint(rng, 1, 8)); }
+            else status = 'Pending';
+          } else if (rng() < ON_TIME[asset]) {
+            status = 'On time'; done = due - rint(rng, 0, 9);
+          } else {
+            const lateBy = rint(rng, 2, 40);
+            if (due + lateBy <= AS_OF_DAY) { status = 'Late'; done = due + lateBy; }
+            else status = 'Pending';
+          }
+          rows.push({ asset, seg: 'Projects', mi, item, due, done, status });
+        }
+      }
+    }
+    const stuck = rngFor('statutory-ageing');
+    const RENEWAL = /licence|consent|NOC|certificate|return|cess/i;   // remittances clear within the month
+    for (const r of rows) {
+      if (r.status !== 'Late' || r.due >= AS_OF_DAY - 20 || !RENEWAL.test(r.item)) continue;
+      const p = 0.55 * Math.exp(-(AS_OF_DAY - r.due) / 160);
+      if (stuck() < p) { r.status = 'Pending'; r.done = null; }
+    }
     return rows;
   }
 
@@ -1010,10 +1047,17 @@ const Mock = (() => {
       if (!segs.includes('Operations')) segs[0] = 'Operations';
       names.forEach((n, i) => info.set(asset + '|' + n, { seg: segs[i], rate: rint(rng, 720, 1050) * (segs[i] === 'Projects' ? 1.08 : 1) }));
     }
+    // contract-labour rates step up with the half-yearly variable-DA revisions
+    // (April and October) rather than drifting every month
+    const vda = (mi) => {
+      let n = 0;
+      for (let x = W_START + 1; x <= mi; x++) if (x % 12 === 3 || x % 12 === 9) n++;
+      return 1 + 0.025 * n;
+    };
     for (const c of cAtt) {
       const k = info.get(c.asset + '|' + c.contractor);
       c.seg = k.seg;
-      c.cost = Math.round(c.present * k.rate * (1 + (c.mi - W_START) * 0.004) * (0.97 + rng() * 0.06));
+      c.cost = Math.round(c.present * k.rate * vda(c.mi) * (0.97 + rng() * 0.06));
     }
     for (const c of cComp) c.seg = info.get(c.asset + '|' + c.contractor).seg;
   }
