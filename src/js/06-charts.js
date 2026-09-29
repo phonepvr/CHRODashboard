@@ -301,15 +301,11 @@ const Charts = (() => {
     for (const id of drawn.keys()) if (!live.has(id)) drawn.delete(id);
     for (const [svg, id, d, want] of todo) svg.outerHTML = tag(d.fn({ ...d.args, w: want }), id, want);
   }
-  // redraw after any render into `root` and on resize
+  // redraw after any render into `root` (the observer's own microtask, so it
+  // runs before work a handler queues after rendering) and on resize
   function observe(root) {
-    let queued = false;
-    const run = () => { queued = false; refit(); };
-    new MutationObserver((recs) => {
-      if (queued || !recs.some((r) => r.addedNodes.length)) return;
-      queued = true;
-      queueMicrotask(run);
-    }).observe(root, { childList: true, subtree: true });
+    new MutationObserver((recs) => { if (recs.some((r) => r.addedNodes.length)) refit(); })
+      .observe(root, { childList: true, subtree: true });
     window.addEventListener('resize', debounce(refit, 150));
   }
 

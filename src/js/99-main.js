@@ -532,7 +532,8 @@ const App = {
     document.getElementById('sel-asset').value = a;
     UI.invalidateTabs();
     refreshChrome();
-    if (keyboard) document.querySelector(`#panel-${App.state.activeTab} [data-setasset="${CSS.escape(a)}"][role="button"]`)?.focus();
+    // after the charts are refitted to their cards (Charts.observe)
+    if (keyboard) queueMicrotask(() => document.querySelector(`#panel-${App.state.activeTab} [data-setasset="${CSS.escape(a)}"][role="button"]`)?.focus());
   }
 
   // Row-level choke point: only 'full' metrics drill, and every drill passes

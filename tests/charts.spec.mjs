@@ -68,6 +68,7 @@ test.describe('Phase 4 — charts & interactivity', () => {
   });
 
   test('chart drills and cross-filters are keyboard buttons (Tab, then Enter)', async ({ page }) => {
+    await page.setViewportSize({ width: 1024, height: 768 });
     await loadMock(page);
     await page.click('#tab-attrition');
     const cuts = page.locator('#attr-cuts g[data-drill]');

@@ -60,6 +60,23 @@ test.describe('Phase 6 — hardening (adversarial-review fixes)', () => {
     expect(r.mockApostrophes).toBe(0);
   });
 
+  test('PRIVACY: pseudonyms stay unique within a session across every employee ID', async ({ page }) => {
+    await loadMock(page);
+    const r = await page.evaluate(() => {
+      const ids = [...new Set(App.state.datasets.get('employee_master').rows.map((x) => x.employee_id))];
+      const tokens = ids.map((id) => Access.pseudonym(id));
+      return {
+        n: ids.length, unique: new Set(tokens).size,
+        stable: ids.slice(0, 200).every((id, i) => Access.pseudonym(id) === tokens[i]),
+        format: tokens.every((t) => /^EMP-[0-9A-F]{6}$/.test(t))
+      };
+    });
+    expect(r.n).toBeGreaterThan(10_000);
+    expect(r.unique).toBe(r.n);
+    expect(r.stable).toBe(true);
+    expect(r.format).toBe(true);
+  });
+
   test('CORRECTNESS: duplicate employee_master rows are not double-counted in headcount', async ({ page }) => {
     await page.goto(ARTIFACT);
     const dupCsv = [
