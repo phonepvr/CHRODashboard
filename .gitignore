@@ -6,3 +6,4 @@ build/font.b64
 build/*.ttf
 build/*.woff2
 *.log
+.claude/worktrees/
