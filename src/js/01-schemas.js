@@ -110,7 +110,7 @@ const SCHEMAS = {
     desc: 'One row per hiring requisition (open or closed) for the permanent roll. The lifecycle columns (status, offer and joining dates, source, recruiter) drive the TA Pipeline tab.',
     keyColumn: 'requisition_id',
     columns: [
-      { name: 'Requisition ID', key: 'requisition_id', type: 'id', required: true, desc: 'Unique requisition identifier', aka: AKA.reqId, ex: ['REQ-2024-0113', 'REQ-2025-0027', 'REQ-2025-0031'] },
+      { name: 'Requisition ID', key: 'requisition_id', type: 'id', required: true, desc: 'Unique requisition identifier', aka: [...AKA.reqId, 'Position Code'], ex: ['REQ-2024-0113', 'REQ-2025-0027', 'REQ-2025-0031'] },
       { name: 'Asset', key: 'asset', type: 'enum', enum: 'asset', required: true, desc: 'Hiring asset', aka: [...AKA.asset, 'Hiring Location'], ex: ['Hazira', 'Vizag', 'Paradeep'] },
       { name: 'Grade', key: 'grade', type: 'text', required: false, desc: 'Grade of the position', aka: ['Position Grade', 'Grade Code'], ex: ['DGM', 'GM', 'S1'] },
       { name: 'Function', key: 'function', type: 'text', required: false, desc: 'Function / department (Function 1)', aka: AKA.func, ex: ['Operations', 'Project Engineering', 'HR'] },

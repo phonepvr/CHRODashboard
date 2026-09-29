@@ -865,7 +865,8 @@ const Mock = (() => {
     for (const e of allEmps) {
       const endDay = e.exitDay ?? AS_OF_DAY;
       const events = [];
-      if (e.lastPromo != null && e.lastPromo >= e.doj && e.lastPromo <= endDay) {
+      // a Last Promotion Date on the joining day is the joining grade, not a movement
+      if (e.lastPromo != null && e.lastPromo > e.doj && e.lastPromo <= endDay) {
         events.push({ day: e.lastPromo, type: 'Promotion' });
         if (e.lastPromo - e.doj > 4 * 365 && rng() < 0.5) {
           events.push({ day: e.doj + rint(rng, 730, e.lastPromo - e.doj - 365), type: 'Promotion' });

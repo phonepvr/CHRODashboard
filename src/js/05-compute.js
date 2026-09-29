@@ -25,7 +25,7 @@ const Compute = (() => {
   const SEG_DATASETS = ['employee_master', 'requisitions', 'positions', 'hc_budget', 'production_safety',
     'contract_attendance', 'contract_compliance', 'wellbeing', 'statutory_compliance'];
   // datasets that inherit their segment from another one
-  const SEG_VIA = { internal_applications: 'requisitions', candidate_pipeline: 'requisitions', org_units: null, targets: null };
+  const SEG_VIA = { internal_applications: 'requisitions', candidate_pipeline: 'requisitions', succession: 'employee_master', org_units: null, targets: null };
 
   function build() {
     if (model && modelVersion === App.state.dataVersion) return model;
