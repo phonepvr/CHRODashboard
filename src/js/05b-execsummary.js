@@ -157,6 +157,13 @@ const ExecSummary = (() => {
       return { type: 'watch', key: 'stat_pending_overdue', text: `${fmtInt(n)} statutory item${n > 1 ? 's are' : ' is'} pending past the due date${age != null ? `, ${fmtInt(age)} days overdue on average` : ''} [Aparajita].` };
     });
 
+    // 9a'. critical licences / consents past due — operating risk, named separately
+    R.push(() => {
+      const n = val('stat_critical_open', asset);
+      if (!n) return null;
+      return { type: 'watch', key: 'stat_critical_open', text: `${fmtInt(n)} critical statutory item${n > 1 ? 's' : ''} (licences / consents) ${n > 1 ? 'are' : 'is'} past due [Aparajita].` };
+    });
+
     // 9b. absenteeism vs target
     R.push(() => {
       const v = val('absenteeism_pct', asset);

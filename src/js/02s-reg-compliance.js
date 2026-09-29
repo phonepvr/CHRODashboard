@@ -51,6 +51,10 @@ const CompKit = (() => {
   const overdueRows = (m, ctx) => scoped(m, ctx).filter((r) => openAt(r, ctx.asOfDay))
     .sort((a, b) => a.due_date - b.due_date);
   const daysPastDue = (r, ctx) => ctx.asOfDay - r.due_date;
+  // the register's own flag wins; a blank flag falls back to the configured item names
+  const namedCritical = (r) => CONFIG.criticalComplianceItems.some((c) => String(r.compliance_item || '').toLowerCase().includes(c.toLowerCase()));
+  const isCritical = (r) => (r.critical_flag != null ? r.critical_flag : namedCritical(r));
+  const criticalRows = (m, ctx) => overdueRows(m, ctx).filter(isCritical);
 
   // due months (month index) that carry register rows in scope, clipped to the history window
   function dueMonths(m, ctx) {
@@ -177,7 +181,7 @@ const CompKit = (() => {
   return {
     SRC_STAT, SRC_CL, src,
     periodFrom, scoped, applicable, openAt, counted, dueRows, tally, onTimePct, lateRows, overdueRows,
-    daysPastDue, dueMonths, monthTally, itemOf, itemOrder, statusQuality,
+    daysPastDue, isCritical, criticalRows, dueMonths, monthTally, itemOf, itemOrder, statusQuality,
     allBands, contractHcIn, mix, ratioAt,
     perManday, costPerManday, costTotal, costAt, byContractor, blankCostNote,
     assetScopes, scopeLines, scopeBars
@@ -187,12 +191,12 @@ const CompKit = (() => {
 /* =================== Deployment — manning mix [SCRUM ÷ HRMS] =================== */
 
 defineMetric({
-  key: 'contract_onroll_ratio', label: 'Contract-to-on-roll ratio', tab: 'contract', access: 'ops',
+  key: 'contract_onroll_ratio', label: 'Contract-to-permanent ratio', tab: 'contract', access: 'ops',
   group: 'Deployment', unit: '', decimals: 2, direction: null, source: CompKit.SRC_CL,
   formulaText: 'Σ Contract Headcount across contractors (latest month in scope)\n÷ active permanent employees at that month end\n(both sides at the same asset and business segment; the grade-band filter does not apply)',
   inputs: [{ dataset: 'contract_attendance', columns: ['Contractor', 'Asset', 'Month', 'Contract Headcount'] },
            { dataset: 'employee_master', columns: ['Employee ID', 'Asset', 'Employee Class', 'Date of Joining'] }],
-  caveat: 'Manning mix, not a target: a high ratio means more of the work is done by contract labour. Numerator from contract_attendance.csv [SCRUM], denominator from employee_master.csv [HRMS]; trainees are not in either side.',
+  caveat: 'D10’s contract-to-on-roll ratio, labelled by its denominator: the permanent roll (trainees are not in either side), so it differs from the Overview on-roll headcount, which includes trainees. Manning mix, not a target: a high ratio means more of the work is done by contract labour. Numerator from contract_attendance.csv [SCRUM], denominator from employee_master.csv [HRMS].',
   compute: (m, ctx) => CompKit.mix(m, ctx)?.ratio ?? null,
   spark: (m, ctx) => {
     const months = ChartData.monthsAxis(ctx);
@@ -214,8 +218,8 @@ defineMetric({
       for (const s of segs) line(a, s, { ...ctx, asset: a, segment: s });
     }
     return {
-      title: 'Contract-to-on-roll ratio by asset and business segment',
-      columns: ['Asset', 'Business segment', 'Contract month', 'Contract HC', 'On-roll HC', 'Ratio'],
+      title: 'Contract-to-permanent ratio by asset and business segment',
+      columns: ['Asset', 'Business segment', 'Contract month', 'Contract HC', 'Permanent HC', 'Ratio'],
       rows
     };
   }
@@ -324,6 +328,27 @@ defineMetric({
       columns: ['Asset', 'Business segment', 'Compliance item', 'Month', 'Due date', 'Days past due'],
       rows: rows.map((r) => [r.asset, Compute.segOf(r), r.compliance_item, r.month == null ? '—' : monthIdxToLabel(r.month),
         fmtDMY(r.due_date), fmtInt(CompKit.daysPastDue(r, ctx))])
+    };
+  }
+});
+
+defineMetric({
+  key: 'stat_critical_open', label: 'Critical items open past due', tab: 'contract', access: 'ops',
+  group: 'Statutory register', unit: '', decimals: 0, direction: 'lower', source: CompKit.SRC_STAT,
+  formulaText: 'Count of the pending items past due (as “Pending items past due”) that are critical:\nCritical Item Flag = Y, or — where the flag is blank — a Compliance Item naming one of\n' +
+    CONFIG.criticalComplianceItems.join(', '),
+  inputs: [{ dataset: 'statutory_compliance', columns: ['Asset', 'Month', 'Compliance Item', 'Due Date', 'Status', 'Critical Item Flag'] }],
+  caveat: 'Critical licences and consents (factory, pollution, fire, boiler, stability) carry operating risk beyond a late filing. The item-name fallback keeps the count available for a register without the flag column.',
+  compute: (m, ctx) => (m.has('statutory_compliance') ? CompKit.criticalRows(m, ctx).length : null),
+  quality: (m, ctx) => (m.has('statutory_compliance') && CompKit.scoped(m, ctx).every((r) => r.critical_flag == null)
+    ? 'No Critical Item Flag in the register — critical items judged from their names' : null),
+  drill: (m, ctx) => {
+    const rows = CompKit.criticalRows(m, ctx);
+    return {
+      title: `Critical statutory items past due at ${fmtDMY(ctx.asOfDay)} (${rows.length})`,
+      columns: ['Asset', 'Business segment', 'Compliance item', 'Month', 'Due date', 'Days past due', 'Critical by'],
+      rows: rows.map((r) => [r.asset, Compute.segOf(r), r.compliance_item, r.month == null ? '—' : monthIdxToLabel(r.month),
+        fmtDMY(r.due_date), fmtInt(CompKit.daysPastDue(r, ctx)), r.critical_flag != null ? 'Critical Item Flag' : 'item name'])
     };
   }
 });

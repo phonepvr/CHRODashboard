@@ -26,10 +26,12 @@ const Mock = (() => {
     ['Quality', 0.06], ['Finance', 0.05], ['Safety', 0.05], ['HR', 0.04], ['IT', 0.04], ['Sales & Marketing', 0.04]
   ];
 
+  // voluntary exits only: Performance / Disciplinary / Absconding are the
+  // involuntary reasons (attr_involuntary), drawn separately
   const EXIT_REASONS = [
-    ['Better prospects', 0.34], ['Compensation', 0.16], ['Relocation / family', 0.14],
-    ['Higher education', 0.08], ['Health', 0.05], ['Work environment', 0.08],
-    ['Performance', 0.07], ['Absconding', 0.03], ['Career change', 0.05]
+    ['Better prospects', 0.38], ['Compensation', 0.18], ['Relocation / family', 0.15],
+    ['Higher education', 0.09], ['Health', 0.05], ['Work environment', 0.09],
+    ['Career change', 0.06]
   ];
 
   // [programme, category] — categories drive the HSE / compliance coverage metrics
@@ -574,6 +576,32 @@ const Mock = (() => {
       const shift = latest - e.exitDay + 30;
       e.roleStart = Math.max(e.doj, e.roleStart - shift);
       if (e.lastPromo != null) e.lastPromo = Math.max(e.doj, e.lastPromo - shift);
+    }
+  }
+
+  // Realism pass (own stream 'entry-age'): campus and GET hires join at 21–25,
+  // so the permanent roll carries a young (Gen Z) cohort that also exits. VP+
+  // and recent AM–GM joiners keep their drawn age; nobody passes superannuation.
+  function entryAges(employees) {
+    const rng = rngFor('entry-age');
+    for (const e of employees) {
+      if (e.isTrainee || (e.hireType !== 'Campus' && e.hireType !== 'GET')) continue;
+      const atJoin = 21 + rng() * 4;
+      const tenure = yearsBetween(e.doj, e.exitDay ?? AS_OF_DAY);
+      if (e.band === 'VP & above' || (e.band === 'AM-GM' && tenure < 6)) continue;
+      const dob = e.doj - Math.round(atJoin * 365.25);
+      if (yearsBetween(dob, e.exitDay ?? AS_OF_DAY) < CONFIG.retirementAge - 0.5) e.dob = dob;
+    }
+  }
+
+  // The master's Last Promotion Date always names a Promotion row, or is blank:
+  // a date on the joining day is the joining grade, and at the entry rung (or an
+  // unknown level) genMovements records the step as a re-designation.
+  function alignMasterPromotions(allEmps) {
+    const entry = CONFIG.levels.length - 2;
+    for (const e of allEmps) {
+      const i = CONFIG.levels.indexOf(e.level);
+      if (e.lastPromo != null && (e.lastPromo <= e.doj || i < 0 || i >= entry)) e.lastPromo = null;
     }
   }
 
@@ -1178,14 +1206,15 @@ const Mock = (() => {
     // Keys must match registry keys; a few metrics are deliberately left
     // without targets to exercise the "Target not set" state.
     return [
-      ['attr_annualised', 9, 'lower'], ['attr_tt_count', 3, 'lower'], ['attr_early_1y', 12, 'lower'],
+      ['attr_annualised', 9, 'lower'], ['attr_tt_count', 0, 'lower'], ['attr_early_1y', 12, 'lower'],
       ['attr_regretted', 30, 'lower'],
       ['succession_coverage', 80, 'higher'], ['succ_ready_now', 45, 'higher'], ['internal_fill_rate', 60, 'higher'],
-      ['tt_stagnation', 18, 'lower'], ['tt_3yr_nopromo', 10, 'lower'],
-      ['cp_occupancy', 55, 'higher'], ['cp_vacancy', 8, 'lower'], ['req_open_90d', 5, 'lower'],
+      // counts carry zero targets only: a count target would depend on scope size
+      ['tt_stagnation', 18, 'lower'], ['tt_3yr_nopromo', 0, 'lower'],
+      ['cp_occupancy', 55, 'higher'], ['cp_vacancy', 0, 'lower'], ['req_open_90d', 0, 'lower'],
       ['learning_coverage_all', 75, 'higher'], ['learning_days_all', 3, 'higher'],
       ['idp_coverage', 85, 'higher'], ['lms_adoption', 85, 'higher'], ['lms_active_6m', 60, 'higher'],
-      ['posting_compliance', 100, 'higher'], ['mobility_ageing', 10, 'lower'],
+      ['posting_compliance', 100, 'higher'], ['mobility_ageing', 0, 'lower'],
       ['female_pct', 10, 'higher'], ['female_trainees', 25, 'higher'],
       ['time_to_fill_median', 75, 'lower'], ['promo_coverage_2y', 40, 'higher'], ['promo_recency_median', 3, 'lower'],
       ['tonnes_per_emp', 350, 'higher'], ['cost_per_tonne', 2600, 'lower'], ['ltifr', 0.3, 'lower'],
@@ -1218,6 +1247,7 @@ const Mock = (() => {
     const retired = genRetirees();
     genExt(employees, 'people-ext:');
     genExt(retired.employees, 'retirees-ext:');
+    entryAges(employees);
     const allEmps = employees.concat(retired.employees);
     const { reqs, apps } = genHiring(employees, exits);
     extendReqs(reqs, employees);
@@ -1225,6 +1255,7 @@ const Mock = (() => {
     const positions = genPositions(employees, reqs);
     const budget = genBudget(allEmps, positions);
     const movements = genMovements(allEmps);
+    alignMasterPromotions(allEmps);
     const absence = genAbsence(allEmps);
     const statutory = genStatutory();
     const learning = genLearning(employees);
@@ -1336,8 +1367,9 @@ const Mock = (() => {
 
     emit('absence_monthly', absence);
 
+    const critical = (item) => CONFIG.criticalComplianceItems.some((c) => item.toLowerCase().includes(c.toLowerCase()));
     emit('statutory_compliance', statutory.map((s) => [
-      s.asset, s.seg, monthIdxToMY(s.mi), s.item, fmtDMY(s.due), D(s.done), s.status
+      s.asset, s.seg, monthIdxToMY(s.mi), s.item, fmtDMY(s.due), D(s.done), s.status, F(critical(s.item))
     ]));
 
     return files;

@@ -32,7 +32,7 @@ const Scorecard = (() => {
       if (restricted) {
         return { entry: e, prior: null, current: null, target: null, direction: e.direction || 'higher', score: null, available: false, restricted };
       }
-      const prior = Compute.priorValue(e.key);
+      const prior = e.snapshot ? null : Compute.priorValue(e.key);
       const target = res.target ? res.target.value : null;
       const direction = (res.target && res.target.direction) || e.direction || 'higher';
       const score = res.available ? scoreOf(res.value, target, direction) : null;
@@ -72,8 +72,10 @@ const Scorecard = (() => {
     const formula = direction === 'lower'
       ? 'Score = (2 × Target − Actual) ÷ Target × 100   (lower is better)'
       : 'Score = Actual ÷ Target × 100   (higher is better)';
-    let worked = 'Target not set — no score; excluded from the function total.';
-    if (target != null && res.value != null) {
+    let worked = target === 0
+      ? 'Zero target — the score divides by the target, so this metric is tracked against 0 but not scored; excluded from the function total.'
+      : 'Target not set — no score; excluded from the function total.';
+    if (target != null && target !== 0 && res.value != null) {
       // show the RAW arithmetic, then the clamp separately when it actually binds,
       // so the worked equation is never arithmetically false.
       const raw = direction === 'lower'

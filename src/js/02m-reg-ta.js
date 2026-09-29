@@ -115,6 +115,9 @@ const TAKit = (() => {
     return { n: v.length, median: quantile(v, 0.5), p25: quantile(v, 0.25), p75: quantile(v, 0.75) };
   }
   const pct = (a, b) => (b ? a / b * 100 : null);
+  // delivery metrics (median, SLA breach, acceptance) are not stated from a base under MIN_N
+  const guarded = (n, v) => (n < MIN_N ? null : v);
+  const smallNote = (n, what) => (n > 0 && n < MIN_N ? `n<${MIN_N} — ${fmtInt(n)} ${what} in the period, too few to state` : null);
   const femaleShare = (g) => { const known = g.Female + g.Male + g.Other; return known ? g.Female / known * 100 : null; };
 
   /* ---------- cuts ---------- */
@@ -281,7 +284,7 @@ const TAKit = (() => {
   return {
     SLA_DAYS, TTF_CAP, AGED_DAYS, WORKLIST_DAYS, MIN_N, STAGES, STAGE_COLS, TBO_BUCKETS, NR, PII,
     periodFrom, inPeriod, isDropped, filledDay, isFilled, isOpen, isOnHold, isTBO, ageOf, tboAge, ttf, capped, statusOf,
-    book, openReqs, filledInPeriod, filledBook, cands, reached, genderOf, offerAccepted, offersInPeriod,
+    book, openReqs, filledInPeriod, filledBook, cands, reached, genderOf, offerAccepted, offersInPeriod, guarded, smallNote,
     quantile, stats, pct, femaleShare, funnel, dwell, pareto, recruiters, sources,
     drill, openDrill, fillDrill, bookDrill, droppedDrill, tboDrill, offerDrill, openRow, OPEN_COLS,
     blankNote, unknownGenderNote
@@ -389,9 +392,12 @@ defineMetric({
   unit: 'd', decimals: 0, direction: 'lower',
   formulaText: `Median of (Joining Date − Open Date) in days over requisitions filled in the period\n(Closed Date when Joining Date is blank — D3); values kept 0 ≤ d ≤ ${TAKit.TTF_CAP}`,
   inputs: [{ dataset: 'requisitions', columns: ['Requisition ID', 'Asset', 'Open Date', 'Joining Date', 'Closed Date', 'Req Status'] }],
-  caveat: 'Differs from the CHRO Scorecard’s “Median time to fill” (Closed − Open) by design: D3 measures to the joining day. Linear-interpolated median, as in the TA Command Centre.',
-  compute: (m, ctx) => TAKit.stats(TAKit.filledInPeriod(m, ctx).map((r) => TAKit.capped(TAKit.ttf(r)))).median,
-  quality: (m, ctx) => TAKit.blankNote(TAKit.filledInPeriod(m, ctx), 'joining_date', 'filled requisitions have no Joining Date — Closed Date used'),
+  caveat: `D3 measures to the joining day; the CHRO Scorecard’s “Median time to fill” uses this same definition. Linear-interpolated median, as in the TA Command Centre. Not stated from fewer than ${TAKit.MIN_N} filled requisitions.`,
+  compute: (m, ctx) => { const s = TAKit.stats(TAKit.filledInPeriod(m, ctx).map((r) => TAKit.capped(TAKit.ttf(r)))); return TAKit.guarded(s.n, s.median); },
+  quality: (m, ctx) => {
+    const s = TAKit.stats(TAKit.filledInPeriod(m, ctx).map((r) => TAKit.capped(TAKit.ttf(r))));
+    return TAKit.smallNote(s.n, 'filled requisitions') || TAKit.blankNote(TAKit.filledInPeriod(m, ctx), 'joining_date', 'filled requisitions have no Joining Date — Closed Date used');
+  },
   spark: (m, ctx) => {
     const filled = TAKit.book(m, ctx).filter((r) => TAKit.isFilled(r, ctx));
     return Compute.monthlySeries(m, ctx, (mi) => TAKit.stats(filled
@@ -405,11 +411,12 @@ defineMetric({
   unit: '%', decimals: 1, direction: 'lower',
   formulaText: `Requisitions filled in the period with TTF > ${TAKit.SLA_DAYS} days\n÷ requisitions filled in the period with a valid TTF (≥ 0, no cap) × 100`,
   inputs: [{ dataset: 'requisitions', columns: ['Requisition ID', 'Asset', 'Open Date', 'Joining Date', 'Closed Date', 'Req Status'] }],
-  caveat: `The ${TAKit.SLA_DAYS}-day SLA is the TA convention named in the requirement — a policy line, not an external benchmark.`,
+  caveat: `The ${TAKit.SLA_DAYS}-day SLA is the TA convention named in the requirement — a policy line, not an external benchmark. Not stated from fewer than ${TAKit.MIN_N} filled requisitions.`,
   compute: (m, ctx) => {
     const t = TAKit.filledInPeriod(m, ctx).map(TAKit.ttf).filter((x) => x != null);
-    return TAKit.pct(t.filter((x) => x > TAKit.SLA_DAYS).length, t.length);
+    return TAKit.guarded(t.length, TAKit.pct(t.filter((x) => x > TAKit.SLA_DAYS).length, t.length));
   },
+  quality: (m, ctx) => TAKit.smallNote(TAKit.filledInPeriod(m, ctx).map(TAKit.ttf).filter((x) => x != null).length, 'filled requisitions'),
   drill: (m, ctx) => TAKit.fillDrill(`Filled in period with TTF > ${TAKit.SLA_DAYS} days`,
     TAKit.filledInPeriod(m, ctx).filter((r) => TAKit.ttf(r) > TAKit.SLA_DAYS))
 });
@@ -423,12 +430,12 @@ defineMetric({
   caveat: 'Counted per candidate offer: a requisition row carries only the selected candidate’s offer, so a requisition-level rate would read close to 100%. Offers released in the last few days may not be answered yet.',
   compute: (m, ctx) => {
     const o = TAKit.offersInPeriod(m, ctx);
-    return TAKit.pct(o.filter(TAKit.offerAccepted).length, o.length);
+    return TAKit.guarded(o.length, TAKit.pct(o.filter(TAKit.offerAccepted).length, o.length));
   },
   quality: (m, ctx) => {
     const o = TAKit.offersInPeriod(m, ctx);
     const r = TAKit.pct(o.filter(TAKit.offerAccepted).length, o.length);
-    return o.length > 20 && r >= 97 ? '≥97% acceptance on more than 20 offers — declined offers are probably not being logged' : null;
+    return TAKit.smallNote(o.length, 'offers') || (o.length > 20 && r >= 97 ? '≥97% acceptance on more than 20 offers — declined offers are probably not being logged' : null);
   },
   drill: (m, ctx) => TAKit.offerDrill('Candidate offers released in period', TAKit.offersInPeriod(m, ctx), m)
 });

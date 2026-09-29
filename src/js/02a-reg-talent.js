@@ -57,7 +57,7 @@ defineMetric({
 
 defineMetric({
   key: 'succession_coverage', label: 'Succession coverage (GM + CP)', tab: 'talent',
-  group: 'Succession', unit: '%', direction: 'higher', scorecard: 'Talent Management',
+  group: 'Succession', unit: '%', direction: 'higher', snapshot: true, scorecard: 'Talent Management',
   formulaText: 'GM-level + Critical Positions with ≥1 identified successor ÷ all GM + CP positions × 100',
   inputs: [{ dataset: 'succession', columns: ['Position ID', 'Position Level', 'Successor Employee ID'] }],
   compute: (m, ctx) => {
@@ -78,7 +78,7 @@ defineMetric({
 
 defineMetric({
   key: 'succ_ready_now', label: 'Ready-now index', tab: 'talent',
-  group: 'Succession', unit: '%', direction: 'higher', scorecard: 'Talent Management',
+  group: 'Succession', unit: '%', direction: 'higher', snapshot: true, scorecard: 'Talent Management',
   formulaText: 'Positions with a Ready Now successor ÷ all GM + CP positions × 100',
   inputs: [{ dataset: 'succession', columns: ['Position ID', 'Position Level', 'Successor Employee ID', 'Readiness'] }],
   compute: (m, ctx) => {
@@ -115,7 +115,7 @@ defineMetric({
 
 defineMetric({
   key: 'cp_occupancy', label: 'CP occupancy by TT/CT', tab: 'talent',
-  group: 'Critical Positions', unit: '%', direction: 'higher', scorecard: 'Talent Management',
+  group: 'Critical Positions', unit: '%', direction: 'higher', snapshot: true, scorecard: 'Talent Management',
   formulaText: 'Critical Positions whose incumbent is flagged TT or CT ÷ occupied CPs × 100',
   inputs: [{ dataset: 'succession', columns: ['Position ID', 'Position Level', 'Incumbent Employee ID'] },
            { dataset: 'employee_master', columns: ['Employee ID', 'TT Flag', 'CT Flag'] }],

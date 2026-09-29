@@ -174,8 +174,8 @@ defineMetric({
   formulaText: 'Line managers with ≥1 active direct report whose Level equals the manager’s own Level — count\n(a blank Level on either side is not compared)',
   inputs: [{ dataset: 'employee_master', columns: ['Employee ID', 'Manager ID', 'Level', 'Date of Joining', 'Employee Class'] }],
   caveat: 'A structural flag — same-level reporting usually signals a missing layer or a title-only grade. Needs the optional Level column.',
-  compute: (m, ctx) => MgrKit.when(m, () => MgrKit.summary(MgrKit.managers(m, ctx)).same),
-  quality: (m, ctx) => MgrKit.levelQuality(m, ctx),
+  compute: (m, ctx) => MgrKit.when(m, () => (m.emps.some((e) => e.level != null) ? MgrKit.summary(MgrKit.managers(m, ctx)).same : null)),
+  quality: (m, ctx) => (m.emps.some((e) => e.level != null) ? MgrKit.levelQuality(m, ctx) : 'Level not in employee_master.csv — map the column to compare levels'),
   drill: (m, ctx) => MgrKit.sameLevelDetail(MgrKit.managers(m, ctx))
 });
 

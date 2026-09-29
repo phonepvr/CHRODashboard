@@ -90,7 +90,7 @@ for (const [key, label, pred] of IDP_BANDS) {
 
 defineMetric({
   key: 'lms_adoption', label: 'LMS adoption (ever logged in)', tab: 'lnd',
-  group: 'Learning platform', unit: '%', direction: 'higher', scorecard: 'L&D',
+  group: 'Learning platform', unit: '%', direction: 'higher', snapshot: true, scorecard: 'L&D',
   formulaText: 'Licensed users with ≥1 login ÷ licensed users × 100',
   inputs: [{ dataset: 'lms_usage', columns: ['Employee ID', 'Licensed Flag', 'Last Login Date'] }],
   compute: (m, ctx) => {

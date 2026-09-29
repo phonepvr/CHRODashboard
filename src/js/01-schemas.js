@@ -41,6 +41,9 @@ const ENUMS = {
 // shared synonym lists (header names seen in HRMS / ATS / MIS exports)
 const AKA = {
   empId: ['Emp ID', 'Employee Code', 'Emp Code', 'Employee No', 'Personnel Number', 'Staff ID'],
+  // the HRMS detail reports (demographics, hiring, attrition) head the ID column
+  // "Code" — matched exactly only (akaExact)
+  empIdReport: ['Code'],
   asset: ['Location', 'Site', 'Plant Location', 'Work Location'],
   month: ['Period', 'Reporting Month', 'MM-YYYY'],
   func: ['Function 1', 'Department', 'Function Name', 'Dept'],
@@ -59,8 +62,8 @@ const SCHEMAS = {
     desc: 'One row per on-roll employee. Include employees who exited during the history window (their exits are matched from exits.csv by Employee ID) so trends and attrition can be computed.',
     keyColumn: 'employee_id',
     columns: [
-      { name: 'Employee ID', key: 'employee_id', type: 'id', required: true, desc: 'Unique employee identifier', aka: AKA.empId, ex: ['AMNS-HZ-00135', 'AMNS-PD-00072', 'AMNS-VZ-00018'] },
-      { name: 'Name', key: 'name', type: 'text', required: false, desc: 'Display name (use dummy names; the dashboard never needs real ones)', aka: ['Employee Name', 'Full Name', 'Emp Name'], ex: ['A. Sharma', 'R. Patel', 'S. Rao'] },
+      { name: 'Employee ID', key: 'employee_id', type: 'id', required: true, desc: 'Unique employee identifier', aka: AKA.empId, akaExact: AKA.empIdReport, ex: ['AMNS-HZ-00135', 'AMNS-PD-00072', 'AMNS-VZ-00018'] },
+      { name: 'Name', key: 'name', type: 'text', required: false, desc: 'Display name (use dummy names; the dashboard never needs real ones)', aka: ['Employee Name', 'Full Name', 'Emp Name', 'Ename', 'E Name'], ex: ['A. Sharma', 'R. Patel', 'S. Rao'] },
       { name: 'Asset', key: 'asset', type: 'enum', enum: 'asset', required: true, desc: 'Operating asset / site', aka: AKA.asset, ex: ['Hazira', 'Paradeep', 'Vizag'] },
       { name: 'Grade Band', key: 'grade_band', type: 'enum', enum: 'gradeBand', required: true, desc: 'Grade band', aka: ['Grade Group', 'Band Group', 'Cadre'], ex: ['AM-GM', 'Below AM', 'VP & above'] },
       { name: 'Grade', key: 'grade', type: 'text', required: false, desc: 'Grade code within band', aka: ['Grade Code', 'Pay Grade', 'Designation Grade'], ex: ['DGM', 'S2', 'VP'] },
@@ -72,7 +75,7 @@ const SCHEMAS = {
       { name: 'TT Flag', key: 'tt_flag', type: 'flag', required: false, desc: 'Identified as Top Talent (Y/N)', aka: ['Top Talent', 'Top Talent Flag', 'TT'], ex: ['N', 'Y', 'N'] },
       { name: 'CT Flag', key: 'ct_flag', type: 'flag', required: false, desc: 'Identified as Critical Talent (Y/N)', aka: ['Critical Talent', 'Critical Talent Flag', 'CT'], ex: ['N', 'N', 'Y'] },
       { name: 'Critical Position Flag', key: 'cp_flag', type: 'flag', required: false, desc: 'Occupies a Critical Position (Y/N)', aka: ['CP Flag', 'Critical Position', 'Critical Role Flag'], ex: ['N', 'Y', 'N'] },
-      { name: 'Manager ID', key: 'manager_id', type: 'text', required: false, desc: 'Employee ID of the line manager (drives the manager and span metrics)', aka: ['Reporting Manager ID', 'Manager Code', 'Supervisor ID', 'Line Manager ID', 'RM Code'], ex: ['AMNS-HZ-00021', 'AMNS-PD-00003', 'AMNS-VZ-00002'] },
+      { name: 'Manager ID', key: 'manager_id', type: 'text', required: false, desc: 'Employee ID of the line manager (drives the manager and span metrics)', aka: ['Reporting Manager ID', 'Manager Code', 'Supervisor ID', 'Line Manager ID', 'RM Code', 'Man Code'], ex: ['AMNS-HZ-00021', 'AMNS-PD-00003', 'AMNS-VZ-00002'] },
       { name: 'Nationality', key: 'nationality', type: 'text', required: false, desc: 'Nationality (drives international workforce %)', aka: ['Citizenship', 'Country of Nationality'], ex: ['Indian', 'Indian', 'Japanese'] },
       { name: 'Disability Flag', key: 'disability_flag', type: 'flag', required: false, desc: 'Person with disability (Y/N)', aka: ['PwD Flag', 'Person with Disability', 'Divyang Flag'], ex: ['N', 'N', 'N'] },
       { name: 'Current Role Start Date', key: 'role_start', type: 'date', required: false, desc: 'Start date in current role (drives stagnation metrics)', aka: ['Role Start Date', 'Date in Current Role', 'Current Position Start Date'], ex: ['01-04-2021', '15-07-2021', '01-10-2019'] },
@@ -94,7 +97,7 @@ const SCHEMAS = {
     desc: 'One row per separation in the history window. Employee ID should exist in the employee master. Retirements are listed here but excluded from every attrition rate.',
     keyColumn: 'employee_id',
     columns: [
-      { name: 'Employee ID', key: 'employee_id', type: 'id', required: true, desc: 'Employee who exited', aka: AKA.empId, ex: ['AMNS-HZ-00135', 'AMNS-PD-00072', 'AMNS-KD-00311'] },
+      { name: 'Employee ID', key: 'employee_id', type: 'id', required: true, desc: 'Employee who exited', aka: AKA.empId, akaExact: AKA.empIdReport, ex: ['AMNS-HZ-00135', 'AMNS-PD-00072', 'AMNS-KD-00311'] },
       { name: 'Exit Date', key: 'exit_date', type: 'date', required: true, desc: 'Last working day', aka: ['Last Working Day', 'LWD', 'Separation Date', 'Date of Exit', 'Relieving Date'], ex: ['18-05-2025', '02-01-2025', '30-11-2024'] },
       { name: 'Exit Type', key: 'exit_type', type: 'enum', enum: 'exitType', required: true, desc: 'Voluntary, Involuntary or Retirement (superannuation — counted separately, never in attrition rates)', aka: ['Separation Type', 'Exit Category', 'Type of Exit', 'Attrition Type'], ex: ['Voluntary', 'Involuntary', 'Retirement'] },
       { name: 'Regretted Flag', key: 'regretted_flag', type: 'flag', required: false, desc: 'Business regrets the exit (Y/N)', aka: ['Regretted', 'Regrettable Exit', 'Regret Flag'], ex: ['Y', 'N', 'N'] },
@@ -433,7 +436,8 @@ const SCHEMAS = {
       { name: 'Compliance Item', key: 'compliance_item', type: 'text', required: true, desc: 'Statutory item / document', aka: ['Compliance', 'Statutory Item', 'Document', 'Compliance Requirement'], ex: ['PF remittance', 'Professional tax', 'BOCW welfare cess'] },
       { name: 'Due Date', key: 'due_date', type: 'date', required: true, desc: 'Statutory due date', aka: ['Due On', 'Statutory Due Date', 'Deadline'], ex: ['15-06-2025', '30-06-2025', '15-05-2025'] },
       { name: 'Completed Date', key: 'completed_date', type: 'date', required: false, desc: 'Date completed / filed (blank = not yet)', aka: ['Completion Date', 'Filed On', 'Date Completed', 'Submitted On'], ex: ['12-06-2025', '', '21-05-2025'] },
-      { name: 'Status', key: 'status', type: 'enum', enum: 'complianceStatus', required: true, desc: 'On time / Late / Pending / Not applicable', aka: ['Compliance Status', 'Completion Status', 'State'], ex: ['On time', 'Pending', 'Late'] }
+      { name: 'Status', key: 'status', type: 'enum', enum: 'complianceStatus', required: true, desc: 'On time / Late / Pending / Not applicable', aka: ['Compliance Status', 'Completion Status', 'State'], ex: ['On time', 'Pending', 'Late'] },
+      { name: 'Critical Item Flag', key: 'critical_flag', type: 'flag', required: false, desc: 'Y = a critical licence / consent (blank = judged from the item name against the configured critical items)', aka: ['Critical Item', 'Critical Flag', 'Criticality Flag', 'Is Critical'], ex: ['N', 'N', 'N'] }
     ]
   }
 };

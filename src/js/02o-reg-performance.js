@@ -227,7 +227,7 @@ const PerfKit = (() => {
 
 defineMetric({
   key: 'annual_review_pct', label: 'Annual review completion', tab: 'performance', access: 'perf',
-  group: 'Performance management', unit: '%', direction: 'higher', scorecard: 'Performance & Rewards',
+  group: 'Performance management', unit: '%', direction: 'higher', snapshot: true, scorecard: 'Performance & Rewards',
   formulaText: 'Employees with Annual Review Complete Flag = Y\n÷ employees with the flag filled (in scope for the annual cycle) × 100',
   inputs: [{ dataset: 'pms_status', columns: ['Employee ID', 'Annual Review Complete Flag', 'Annual Review Status'] },
            { dataset: 'employee_master', columns: ['Employee ID', 'Asset', 'Grade Band', 'Function', 'Business Segment', 'Level', 'Manager ID'] }],

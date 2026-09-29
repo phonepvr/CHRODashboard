@@ -4,13 +4,11 @@
 defineMetric({
   key: 'time_to_fill_median', label: 'Median time to fill', tab: 'talent',
   group: 'Hiring', unit: 'd', decimals: 0, direction: 'lower', scorecard: 'Talent Acquisition',
-  formulaText: 'Median of (Closed Date − Open Date) across requisitions closed in period',
-  inputs: [{ dataset: 'requisitions', columns: ['Requisition ID', 'Open Date', 'Closed Date'] }],
-  compute: (m, ctx) => {
-    const closed = Compute.reqsClosedInPeriod(m, ctx, false).filter((r) => r.open_date != null);
-    if (!closed.length) return null;
-    return median(closed.map((r) => r.closed_date - r.open_date));
-  }
+  formulaText: 'Median of (Joining Date − Open Date) in days over requisitions filled in the period\n(Closed Date when Joining Date is blank — D3), as the TA tab’s “Median time to fill”',
+  inputs: [{ dataset: 'requisitions', columns: ['Requisition ID', 'Asset', 'Open Date', 'Joining Date', 'Closed Date', 'Req Status'] }],
+  caveat: 'The scorecard row and the TA tab tile share one definition (D3), so their target verdicts agree. Not stated from fewer than five filled requisitions.',
+  compute: (m, ctx) => REG_BY_KEY.get('ta_ttf_median').compute(m, ctx),
+  quality: (m, ctx) => REG_BY_KEY.get('ta_ttf_median').quality(m, ctx)
 });
 
 defineMetric({

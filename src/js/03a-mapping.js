@@ -34,6 +34,7 @@ const Mapping = (() => {
   function simPrepared(h, c) {
     if (!h.n || !c.n) return 0;
     if (h.n === c.n) return 1;
+    if (c.exact) return h.ns === c.ns ? 0.97 : 0;
     if (h.ns === c.ns) return 0.97;
     if (h.pad.includes(c.pad) || (h.toks.size > 1 && c.pad.includes(h.pad))) return 0.86;
     let inter = 0;
@@ -43,12 +44,14 @@ const Mapping = (() => {
 
   const headerSimilarity = (header, candidate) => simPrepared(prep(header), prep(candidate));
 
-  // per schema: one prepared candidate list (name + aka) per column, built once
+  // a column's name + aka, plus akaExact: synonyms too generic for a substring
+  // or token match ('Code' would claim 'Cost Centre Code'), taken only as equal
+  const candsOf = (c) => [c.name, ...(c.aka || [])].map(prep).concat((c.akaExact || []).map((s) => ({ ...prep(s), exact: true })));
+
+  // per schema: one prepared candidate list per column, built once
   const candCache = new Map();
   function candidates(schemaId) {
-    if (!candCache.has(schemaId)) {
-      candCache.set(schemaId, SCHEMAS[schemaId].columns.map((c) => [c.name, ...(c.aka || [])].map(prep)));
-    }
+    if (!candCache.has(schemaId)) candCache.set(schemaId, SCHEMAS[schemaId].columns.map(candsOf));
     return candCache.get(schemaId);
   }
 
@@ -128,7 +131,7 @@ const Mapping = (() => {
       for (const [k, v] of cols) if (k !== key && v.idx === idx) cols.set(k, { idx: null, header: null, score: 0, how: 'manual' });
       const c = SCHEMAS[schemaId].columns.find((x) => x.key === key);
       const hp = prep(headers[idx]);
-      const auto = Math.max(...[c.name, ...(c.aka || [])].map((k) => simPrepared(hp, prep(k))));
+      const auto = Math.max(...candsOf(c).map((k) => simPrepared(hp, k)));
       cols.set(key, { idx, header: headers[idx], score: auto, how: 'manual' });
     } else {
       cols.set(key, { idx: null, header: null, score: 0, how: 'manual' });

@@ -70,7 +70,7 @@ TabRenderers.contract = (panel) => {
       })
     }),
     card({
-      title: 'Contract-to-on-roll ratio by asset', infoKey: 'contract_onroll_ratio',
+      title: 'Contract-to-permanent ratio by asset', infoKey: 'contract_onroll_ratio',
       sub: `${CompKit.src('contract_attendance')} ÷ ${CompKit.src('employee_master')} latest month · contract per permanent employee · click to focus`
     }, () => needData(['contract_attendance', 'employee_master'], () => {
       const counts = [];
@@ -81,15 +81,15 @@ TabRenderers.contract = (panel) => {
         counts.push(`${s} ${fmtInt(x.contract)} : ${Access.cellText(x.onroll)}`);
         return {
           value: hide ? null : x.ratio,
-          tip: `${s} · ${monthIdxToLabel(x.month)}\nContract ${fmtInt(x.contract)} · on-roll ${Access.cellText(x.onroll)}\nRatio ${hide || x.ratio == null ? '—' : fmtNum(x.ratio, 2)} contract per permanent employee`
+          tip: `${s} · ${monthIdxToLabel(x.month)}\nContract ${fmtInt(x.contract)} · permanent ${Access.cellText(x.onroll)}\nRatio ${hide || x.ratio == null ? '—' : fmtNum(x.ratio, 2)} contract per permanent employee`
         };
       });
       return items.some((i) => i.value != null)
-        ? Charts.barH({ items, fmt: (v) => fmtNum(v, 2) }) + `<div class="chart-note ck-counts">Contract : on-roll headcount — ${esc(counts.join(' · '))}</div>`
+        ? Charts.barH({ items, fmt: (v) => fmtNum(v, 2) }) + `<div class="chart-note ck-counts">Contract : permanent headcount — ${esc(counts.join(' · '))}</div>`
         : '<div class="chart-empty">No contract rows for this scope.</div>';
     })),
     card({
-      title: 'Manning-mix trend', sub: `${CompKit.src('contract_attendance')} contract headcount ÷ permanent on-roll, monthly · selected scope in red`, infoKey: 'contract_onroll_ratio'
+      title: 'Manning-mix trend', sub: `${CompKit.src('contract_attendance')} contract headcount ÷ permanent headcount, monthly · selected scope in red`, infoKey: 'contract_onroll_ratio'
     }, () => needData(['contract_attendance', 'employee_master'], () => {
       const { months, series } = ChartData.assetLines(ctx, (asset, mi) => CompKit.ratioAt(m, sub(asset), mi));
       return Charts.line({ months, series, yFmt: (v) => fmtNum(v, 1) });
@@ -220,15 +220,16 @@ TabRenderers.contract = (panel) => {
     const rows = CompKit.overdueRows(m, ctx);
     if (!rows.length) return '<div class="chart-empty">Nothing is past due at the as-of date.</div>';
     const cap = 40;
-    const t = Access.maskTable(['Asset', 'Business segment', 'Compliance item', 'Month', 'Due date', 'Days past due'],
+    const t = Access.maskTable(['Asset', 'Business segment', 'Compliance item', 'Critical', 'Month', 'Due date', 'Days past due'],
       rows.slice(0, cap).map((r) => {
         const d = CompKit.daysPastDue(r, ctx);
-        return [r.asset, Compute.segOf(r), r.compliance_item, r.month == null ? '—' : monthIdxToLabel(r.month), fmtDMY(r.due_date),
+        return [r.asset, Compute.segOf(r), r.compliance_item, CompKit.isCritical(r) ? { html: '<span class="ck-crit">Critical</span>' } : '',
+          r.month == null ? '—' : monthIdxToLabel(r.month), fmtDMY(r.due_date),
           { html: `<span class="ck-age${d > 90 ? ' ck-age-hi' : ''}">${esc(fmtInt(d))}</span>` }];
       }));
     if (!t) return `<div class="chart-empty">Row-level detail withheld for ${esc(Access.label())}.</div>`;
     return `<div class="ck-worklist">${UI.tableHTML(t.columns, t.rows)}</div>` +
-      (rows.length > cap ? `<div class="chart-note">Showing the ${cap} oldest of ${fmtInt(rows.length)} — open the “Pending items past due” tile for all.</div>` : '');
+      (rows.length > cap ? `<div class="chart-note">Showing the ${cap} oldest of ${fmtInt(rows.length)} — open the “Pending items past due” tile for all, or “Critical items open past due” for the critical ones.</div>` : '');
   }
 
   stack('pre', 'Statutory register', card({

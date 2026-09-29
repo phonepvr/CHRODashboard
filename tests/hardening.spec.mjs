@@ -91,11 +91,22 @@ test.describe('Phase 6 — hardening (adversarial-review fixes)', () => {
     // popover honesty: for a metric whose raw score falls outside [0,200], the
     // worked equation shows the RAW figure and an explicit clamp line.
     await mockFromGate(page);
-    const info = await page.evaluate(() => Scorecard.scoreInfoHTML('tt_3yr_nopromo'));
-    // actual (~dozens) far exceeds target 10 on a lower-is-better metric → raw < 0
+    // a target that puts the raw score outside [0, 200]: female_pct (higher) against 1
+    const info = await page.evaluate(() => {
+      App.state.datasets.get('targets').rows.find((r) => r.metric_key === 'female_pct').target_value = 1;
+      App.state.dataVersion++;
+      Compute.invalidate();
+      return Scorecard.scoreInfoHTML('female_pct');
+    });
     expect(info).toContain('Clamped to the [0, 200] range');
     // the equation line ends in the true raw value, not the clamped one
-    expect(info).not.toMatch(/× 100 = 0\.0<\/div>/);
+    expect(info).not.toMatch(/× 100 = (0|200)\.0<\/div>/);
+    // a zero target is tracked but never scored (the formula would divide by zero)
+    const zero = await page.evaluate(() => ({ info: Scorecard.scoreInfoHTML('req_open_90d'), row: Scorecard.compute().functions.flatMap((f) => f.rows).find((r) => r.entry.key === 'req_open_90d') }));
+    expect(zero.info).toContain('Zero target');
+    expect(zero.info).not.toMatch(/Infinity|NaN|∞/);
+    expect(zero.row.target).toBe(0);
+    expect(zero.row.score).toBeNull();
   });
 
   test('ROBUSTNESS: a file dropped on the dashboard does not navigate away', async ({ page }) => {

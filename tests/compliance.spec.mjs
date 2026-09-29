@@ -124,9 +124,9 @@ test.describe('Phase 8 — Contract & Compliance (statutory register, manning mi
       expect(await c.locator('svg text.series-label').allTextContents(), t).toContain('Group');
     }
     // ratio bars: one per chart scope, value-labelled, counts beside
-    const ratio = panel.locator('.card', { has: page.locator('.card-title', { hasText: 'Contract-to-on-roll ratio by asset' }) });
+    const ratio = panel.locator('.card', { has: page.locator('.card-title', { hasText: 'Contract-to-permanent ratio by asset' }) });
     await expect(ratio.locator('svg g[data-tip]')).toHaveCount(exp.scopes.length);
-    await expect(ratio.locator('.ck-counts')).toContainText('Contract : on-roll headcount — Hazira');
+    await expect(ratio.locator('.ck-counts')).toContainText('Contract : permanent headcount — Hazira');
     // ageing: every TA ageing bucket drawn, counts sum to the open stock
     const ageing = panel.locator('.card', { has: page.locator('.card-title', { hasText: 'Pending past due — ageing' }) });
     const vals = await ageing.locator('svg text.bar-value').allTextContents();

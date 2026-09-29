@@ -70,6 +70,23 @@ test.describe('Phase 8 — Core-C: field mapping step, auto-match, field_map.csv
     expect(r.byName).toBe('production_safety');   // a file named after a template wins near-ties
   });
 
+  test('HRMS detail-report headers (Code, Ename, Man Code, Function 1, DOJ) map without manual picks', async ({ page }) => {
+    await page.goto(ARTIFACT);
+    const r = await page.evaluate(() => {
+      const headers = ['Code', 'Ename', 'Asset', 'Grade Band', 'Function 1', 'Gender', 'DOB', 'DOJ', 'Employee Class', 'Man Code', 'Cost Centre Code'];
+      const a = Mapping.assign('employee_master', headers).cols;
+      const exits = Mapping.assign('exits', ['Code', 'Exit Date', 'Exit Type']).cols;
+      // a file with no ID column never takes another "… Code" header as the ID
+      const noId = Mapping.assign('employee_master', ['Cost Centre Code', 'Asset']).cols;
+      return {
+        id: a.get('employee_id')?.header, name: a.get('name')?.header, mgr: a.get('manager_id')?.header,
+        fn: a.get('function')?.header, doj: a.get('doj')?.header, missing: Mapping.missingRequired('employee_master', a).map((c) => c.name),
+        exitId: exits.get('employee_id')?.header, noId: noId.get('employee_id')?.header ?? null
+      };
+    });
+    expect(r).toEqual({ id: 'Code', name: 'Ename', mgr: 'Man Code', fn: 'Function 1', doj: 'DOJ', missing: [], exitId: 'Code', noId: null });
+  });
+
   test('mock passes through the mapping step: every field exact, one-click confirm, Back returns to the gate', async ({ page }) => {
     const net = tripwire(page);
     await page.goto(ARTIFACT);

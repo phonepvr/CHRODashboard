@@ -29,9 +29,11 @@ const DemoKit = (() => {
 
   /* ---------- superannuation ---------- */
 
-  // months from the as-of month to the month the employee turns retirementAge;
+  // whole months between the as-of month and the month the employee turns
+  // retirementAge: the next 36 months (as-of month + 1 … + 36) fill the
+  // [0, 36) buckets, since superannuation falls on that month's last day;
   // anyone already past it (still on roll) counts as 0 → the "<3M" bucket
-  const monthsToSuper = (e, ctx) => (e.dob == null ? null : Math.max(0, retireMonthIdx(e.dob, CONFIG.retirementAge) - ctx.endMonth));
+  const monthsToSuper = (e, ctx) => (e.dob == null ? null : Math.max(0, retireMonthIdx(e.dob, CONFIG.retirementAge) - ctx.endMonth - 1));
   const SUPER_MAX = CONFIG.superannBuckets[CONFIG.superannBuckets.length - 1][2];
   const superBucket = (e, ctx) => bucketOf(monthsToSuper(e, ctx), CONFIG.superannBuckets);
 
@@ -597,7 +599,7 @@ defineMetric({
 defineMetric({
   key: 'demo_superann_3y', label: 'Superannuation due ≤ 3 yrs', tab: 'overview', group: 'Employee demographics', access: 'core',
   unit: '', decimals: 0, direction: null,
-  formulaText: `On-roll employees reaching superannuation age ${CONFIG.retirementAge} within the next 36 months\nmonths to superannuation = month of turning ${CONFIG.retirementAge} − as-of month\n(buckets ${CONFIG.superannBuckets.map((b) => b[0]).join(' · ')}; CONFIG.retirementAge, CONFIG.superannBuckets)`,
+  formulaText: `On-roll employees reaching superannuation age ${CONFIG.retirementAge} within the next 36 months\n(superannuation month = as-of month + 1 … + 36; bucket = that month − as-of month − 1)\n(buckets ${CONFIG.superannBuckets.map((b) => b[0]).join(' · ')}; CONFIG.retirementAge, CONFIG.superannBuckets)`,
   inputs: [DemoKit.empInput('DOB')],
   caveat: 'Deterministic from DOB. Anyone still on roll past the superannuation month counts in “<3M”. The drill-down lists the people (identifiers follow the persona’s PII rule).',
   compute: (m, ctx) => DemoKit.onRoll(m, ctx).filter((e) => DemoKit.superBucket(e, ctx) != null).length,

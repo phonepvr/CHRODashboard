@@ -101,6 +101,10 @@ const Outlook = (() => {
     });
   }
 
+  // median time to fill (D3: Joining − Open, else Closed − Open) over every filled
+  // requisition in scope; 90 days when none is filled
+  const fillPace = (m, ctx) => median(TAKit.filledBook(m, ctx).map((r) => TAKit.capped(TAKit.ttf(r)))) ?? 90;
+
   /* 3 — headcount roll-forward */
   function rollForwardPanel(m, ctx) {
     const horizonM = 12;
@@ -109,8 +113,7 @@ const Outlook = (() => {
     const ytd = Compute.ytdAttrition(m, ctx) ?? 0;
     const monthlyExitRate = ytd / 100 / 12;
     const openReqs = m.reqs.filter((r) => Compute.reqOpen(r) && Compute.reqMatch(ctx, r));
-    const closed = m.reqs.filter((r) => r.closed_date != null && r.open_date != null && Compute.reqMatch(ctx, r));
-    const medTTF = median(closed.map((r) => r.closed_date - r.open_date)) ?? 90;
+    const medTTF = fillPace(m, ctx);
     const fillPerMonth = medTTF > 0 ? Math.min(openReqs.length, openReqs.length / (medTTF / 30)) : 0;
     const months = [];
     let hc = start, remainingReqs = openReqs.length;
@@ -143,14 +146,13 @@ const Outlook = (() => {
     if (!m.has('requisitions')) {
       return panel({
         title: 'Vacancy burn-down', horizon: 'until the current openings clear', access: 'req_open_90d',
-        method: 'Open requisitions reduced at the historical closure pace (median time-to-fill).',
+        method: 'Open requisitions reduced at the historical fill pace (median time to fill, D3).',
         assumptions: 'Not computed — requisitions.csv not loaded.',
         body: '<div class="chart-empty">No data loaded for this panel — needs requisitions.csv.</div>'
       });
     }
     const open = m.reqs.filter((r) => Compute.reqOpen(r) && Compute.reqMatch(ctx, r));
-    const closed = m.reqs.filter((r) => r.closed_date != null && r.open_date != null && Compute.reqMatch(ctx, r));
-    const medTTF = median(closed.map((r) => r.closed_date - r.open_date)) ?? 90;
+    const medTTF = fillPace(m, ctx);
     const perMonth = Math.max(1, Math.round(open.length / Math.max(1, medTTF / 30)));
     const months = [], vals = [];
     let rem = open.length;
@@ -164,7 +166,7 @@ const Outlook = (() => {
       : `<div class="chart-empty">${fmtInt(open.length)} open requisition${open.length === 1 ? '' : 's'} — clears within a month at the current pace.</div>`;
     return panel({
       title: 'Vacancy burn-down', horizon: 'until current openings clear (max 12 months)', access: 'req_open_90d',
-      method: `Open requisitions (${fmtInt(open.length)}) reduced by the historical closure pace: median time-to-fill ${fmtInt(medTTF)} days → ~${fmtInt(perMonth)} closures/month.`,
+      method: `Open requisitions (${fmtInt(open.length)}) reduced by the historical fill pace: median time to fill (D3: joining − open) ${fmtInt(medTTF)} days → ~${fmtInt(perMonth)} fills/month.`,
       assumptions: 'Closure pace holds; no new requisitions are raised (so this is a lower bound on future open positions).',
       body
     });

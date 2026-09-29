@@ -24,6 +24,9 @@ const CONFIG = {
   superannBuckets: [['<3M', 0, 3], ['3–6M', 3, 6], ['6–12M', 6, 12], ['1–2Y', 12, 24], ['2–3Y', 24, 36]], // months to superannuation
   generations: [['Boomer', -Infinity, 1965], ['Gen X', 1965, 1981], ['Millennial', 1981, 1997], ['Gen Z', 1997, Infinity]], // birth year
   taAgeingBuckets: [['0–30', 0, 31], ['31–60', 31, 61], ['61–90', 61, 91], ['91–180', 91, 181], ['181–365', 181, 366], ['365+', 366, Infinity]], // days open
+  // statutory items that are critical when the register carries no Critical Item
+  // Flag: matched case-insensitively as a part of the Compliance Item name
+  criticalComplianceItems: ['Factory licence', 'Pollution control consent', 'Fire NOC', 'Boiler inspection', 'Stability certificate'],
   minCell: 5,                 // small-cell suppression threshold for persona-restricted cuts
   minBase: 20                 // average headcount below which a rate cut is flagged "small base"
 };

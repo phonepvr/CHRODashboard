@@ -33,6 +33,7 @@ function defineMetric(entry) {
   entry.caveat = entry.caveat ?? '';
   entry.source = entry.source ?? null;
   entry.access = entry.access ?? null;
+  entry.snapshot = !!entry.snapshot;     // current-cycle snapshot: no prior period exists
   REGISTRY.push(entry);
   REG_BY_KEY.set(entry.key, entry);
 }

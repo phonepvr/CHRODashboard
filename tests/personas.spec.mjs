@@ -284,10 +284,27 @@ test.describe('Phase 8 — Core-B: grouped nav, segment filter, personas, access
     for (const b of cuts.bands.filter((x) => x.small)) {
       await expect(band.locator('g', { hasText: b.label }).locator('.bar-value')).toContainText('withheld');
     }
+    // age distribution: a binding with an age bucket below minCell
+    const agePick = await page.evaluate(() => {
+      const B = [['≤20', 0, 21], ['21–30', 21, 31], ['31–40', 31, 41], ['41–50', 41, 51], ['51–58', 51, 58.0001], ['>58', 58.0001, 200]];
+      const binds = [...CONFIG.assets.map((asset) => ['asset_head', { asset }]),
+        ...CONFIG.assets.flatMap((asset) => Access.functionsAt(asset).map((fn) => ['hrbp', { asset, fn }]))];
+      for (const [id, b] of binds) {
+        App.setPersona(id, b);
+        const ctx = Compute.ctxNow();
+        const perm = Compute.actives(Compute.build(), ctx, 'Permanent').filter((e) => e.dob != null);
+        const small = B.filter(([, lo, hi]) => { const n = perm.filter((e) => { const a = yearsBetween(e.dob, ctx.asOfDay); return a >= lo && a < hi; }).length; return n > 0 && n < CONFIG.minCell; });
+        if (small.length) return { id, b, small: small.map((x) => x[0]) };
+      }
+      return null;
+    });
+    expect(agePick).toBeTruthy();
     await page.click('#tab-overview');
     const age = page.locator('.card', { hasText: 'Age distribution' });
+    for (const label of agePick.small) {
+      await expect(age.locator('g', { hasText: label }).locator('.bar-value')).toContainText('<5');
+    }
     const ageVals = await age.locator('.bar-value').allTextContents();
-    expect(ageVals.some((t) => t.includes('<5'))).toBe(true);
     expect(ageVals.every((t) => !/^[1-4](\s|$)/.test(t.trim()))).toBe(true);
   });
 

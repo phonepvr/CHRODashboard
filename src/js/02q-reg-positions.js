@@ -444,8 +444,11 @@ defineMetric({
   inputs: [{ dataset: 'employee_master', columns: ['Employee ID', 'Position ID', 'Employee Class', 'Date of Joining'] },
            { dataset: 'positions', columns: ['Position ID'] }],
   caveat: 'A data-quality count: these people cannot be tied to a budgeted position, so position-based vacancy and budget figures miss them. The drill-down lists the employees to fix in the HRMS.',
-  compute: (m, ctx) => PosKit.unpositioned(m, ctx).length,
+  // an unmapped optional column is "not computable", never a count of everyone
+  compute: (m, ctx) => (m.emps.some((e) => e.position_id != null) ? PosKit.unpositioned(m, ctx).length : null),
+  quality: (m) => (m.emps.some((e) => e.position_id != null) ? null : 'Position ID not in employee_master.csv — map the column to tie incumbents to positions'),
   drill: (m, ctx) => {
+    if (!m.emps.some((e) => e.position_id != null)) return null;
     const ids = PosKit.positionIds(m);
     const list = PosKit.unpositioned(m, ctx).slice().sort((a, b) => String(a.employee_id).localeCompare(String(b.employee_id)));
     return {

@@ -24,7 +24,7 @@ TabRenderers.scorecard = (panel) => {
         <td>${esc(e.label)}${e.unit === '%' ? ' (%)' : e.unit ? ` (${e.unit})` : ''}
           <button class="i-btn i-inline" data-scoreinfo="${e.key}" aria-expanded="false"
             aria-label="Scoring of ${esc(e.label)}">i</button></td>
-        <td class="num">${r.available ? fmt(r.prior) : '—'}</td>
+        <td class="num">${!r.available ? '—' : e.snapshot ? '<span class="sc-snap" title="Current-cycle snapshot — the period selector does not apply, so there is no prior period">snapshot</span>' : fmt(r.prior)}</td>
         <td class="num">${r.available ? fmt(r.current) : 'no data'}</td>
         <td class="num">${r.target == null ? 'Target not set' : fmt(r.target)}</td>
         ${scoreCell}
