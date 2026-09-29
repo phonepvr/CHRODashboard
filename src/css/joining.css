@@ -1,0 +1,44 @@
+/* ============================================================
+   NEW JOINING tab (R2) — layout only; marks reuse the shared
+   chart classes (.ax, .bar-label, .bar-value) and brand tokens.
+   ============================================================ */
+
+/* the seven hire tiles sit on one row wherever they fit (auto-fit, no orphan tile) */
+.tile-grid.jn-tiles { grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); }
+
+/* trend (wide) + gender donut side by side; 2 × 2 cuts so every 640-unit bar
+   chart renders near 1:1 and its labels stay legible; one column on narrow screens */
+.card-grid.jn-lead { grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); }
+.card-grid.jn-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+@media (max-width: 960px) {
+  .card-grid.jn-lead, .card-grid.jn-grid { grid-template-columns: minmax(0, 1fr); }
+}
+/* long section subtitles drop below the heading on phones */
+@media (max-width: 600px) {
+  #panel-joining .section-head { flex-wrap: wrap; row-gap: 2px; }
+  #panel-joining .section-head .sub { flex-basis: 100%; }
+}
+
+/* point labels on the monthly hiring trend */
+svg .jn-pt { font-family: var(--font-sans); font-size: 10.5px; font-weight: 700; fill: var(--black); font-variant-numeric: tabular-nums; }
+
+/* long unit lists (function plant) scroll inside the card */
+.jn-scroll { max-height: 330px; overflow-y: auto; overscroll-behavior: contain; border-top: var(--hairline); }
+
+/* hiring details table: bounded height, sticky header, dense cells */
+.jn-table { max-height: 440px; overflow: auto; border-top: var(--hairline); }
+.jn-table .data-table { font-size: 12px; font-variant-numeric: tabular-nums; }
+.jn-table .data-table th { position: sticky; top: 0; z-index: 1; background: var(--white); }
+.jn-table .data-table td { white-space: nowrap; padding: 4px 8px; }
+.jn-table-foot {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap;
+  margin-top: 6px; font-size: 11px; color: var(--ink-55);
+}
+.jn-masknote { margin: 0 0 6px; }
+.jn-withheld { gap: 6px; }
+.jn-withheld .lock-ico { color: var(--ink-55); }
+
+@media print {
+  .jn-scroll, .jn-table { max-height: none; overflow: visible; }
+  .jn-table-foot .btn { display: none; }
+}
