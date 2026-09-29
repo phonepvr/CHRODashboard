@@ -105,7 +105,8 @@
 .lvl-hidden { background: var(--ink-10); color: var(--ink-70); }
 .am-table th, .am-table td { white-space: nowrap; }
 .am-table td:nth-child(2) { white-space: normal; }
-.am-current { background: var(--red-10); }
+/* the tint takes the muted text below AA: darker ink inside it */
+.am-current, .data-table th.am-current, .am-current .am-sub { background: var(--red-10); color: var(--ink-70); }
 .am-sub { font-size: 11px; color: var(--ink-55); font-weight: 400; }
 .am-details { border-bottom: var(--hairline); }
 .am-details summary { cursor: pointer; font-weight: 600; padding: 7px 0; }

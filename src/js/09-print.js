@@ -1,9 +1,10 @@
 /* Print pack — pre-rendered into #print-root, dirty-checked before printing.
    Structure: branded cover → Group summary page → one page per asset
    (summary, curated tiles, a compact workforce & talent row, two charts,
-   watch list) → data quality → methodology appendix. A4 portrait: each unit
-   page must fit one sheet (tests/outlook-print-export.spec.mjs checks it with
-   page.pdf()); break rules live in print.css.
+   watch list) → data quality → methodology appendix. A4 portrait: every
+   section must fit one sheet, so page numbers count sheets
+   (tests/outlook-print-export.spec.mjs checks it with page.pdf()); break
+   rules live in print.css.
    Persona-scoped: only the persona's in-scope units (Access.printScopes) and
    visible pages print; restricted tiles print restricted. */
 
@@ -164,17 +165,33 @@ const PrintPack = (() => {
     </section>`;
   }
 
-  function methodologyPage() {
+  // The appendix is longer than a sheet, so it is cut into sheet-sized sections,
+  // each with its own footer, marking and page number. A row's height is
+  // estimated from its text against the fixed column widths in print.css
+  // (.pp-method: characters per line per column); budgets are in text lines.
+  const METHOD_CHARS = [34, 74, 26];
+  const METHOD_LINES = { first: 60, next: 66 };
+  const methodLines = (row) => Math.max(...row.map((c, i) => Math.ceil(String(c).length / METHOD_CHARS[i]) || 1)) + 0.4;
+
+  function methodologyPages() {
     const rows = REGISTRY.map((e) => [e.label, e.formulaText.replace(/\n/g, ' '), e.inputs.map((i) => i.dataset).join(', ')]);
-    return `<section class="print-page">
-      <div class="section-head"><h2 style="font-size:14pt">Methodology appendix</h2>
+    const chunks = [[]];
+    let used = 0;
+    for (const r of rows) {
+      const n = methodLines(r);
+      if (chunks[chunks.length - 1].length && used + n > (chunks.length === 1 ? METHOD_LINES.first : METHOD_LINES.next)) { chunks.push([]); used = 0; }
+      chunks[chunks.length - 1].push(r);
+      used += n;
+    }
+    return chunks.map((c, i) => `<section class="print-page pp-method-page">
+      <div class="section-head"><h2 style="font-size:14pt">Methodology appendix${chunks.length > 1 ? ` (${i + 1} of ${chunks.length})` : ''}</h2>
         <span class="sub">generated from the formula registry — every metric in the pack is defined here</span></div>
-      <p style="font-size:9pt; margin-bottom:6pt">Scoring: higher-is-better Score = Actual ÷ Target × 100;
+      ${i === 0 ? `<p style="font-size:9pt; margin-bottom:6pt">Scoring: higher-is-better Score = Actual ÷ Target × 100;
       lower-is-better Score = (2 × Target − Actual) ÷ Target × 100. Function totals are means of scored
-      metrics; “Target not set” is excluded. Albert Sans embedded under the SIL OFL 1.1.</p>
-      <div class="pp-method">${UI.tableHTML(['Metric', 'Formula', 'Inputs'], rows)}</div>
+      metrics; “Target not set” is excluded. Albert Sans embedded under the SIL OFL 1.1.</p>` : ''}
+      <div class="pp-method">${UI.tableHTML(['Metric', 'Formula', 'Inputs'], c)}</div>
       __FOOTER__
-    </section>`;
+    </section>`);
   }
 
   function build() {
@@ -183,7 +200,7 @@ const PrintPack = (() => {
       coverPage(),
       ...Access.printScopes().map((a) => unitPage(a)),
       ...(Access.canSeeTab('quality') ? [qualityPage()] : []),
-      methodologyPage()
+      ...methodologyPages()
     ];
     const total = pages.length;
     root.innerHTML = pages.map((p, i) => p.replace('__FOOTER__', footer(i + 1, total))).join('');

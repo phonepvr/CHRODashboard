@@ -35,7 +35,9 @@
 .data-table.abs-heat tbody td.abs-h2, .abs-sw.abs-h2 { background: var(--red-40); }
 .data-table.abs-heat tbody td.abs-h3, .abs-sw.abs-h3 { background: var(--red-60); font-weight: 600; }
 .data-table.abs-heat tbody td.abs-h4, .abs-sw.abs-h4 { background: var(--red-80); font-weight: 700; }
-.data-table.abs-heat tbody td.abs-h-na { background: var(--ink-05); color: var(--ink-55); }
+.data-table.abs-heat tbody td.abs-h-na { background: var(--ink-05); color: var(--ink-70); }
+.abs-heat .abs-asset { padding: 0; border: 0; background: none; font: inherit; color: inherit; cursor: pointer; text-align: left; }
+.abs-heat .abs-asset:hover { color: var(--red); }
 .data-table.abs-heat tbody td.abs-total {
   background: var(--white);
   border-left: 1px solid var(--ink-20);

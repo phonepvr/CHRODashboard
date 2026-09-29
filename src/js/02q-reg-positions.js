@@ -238,8 +238,8 @@ const PosKit = (() => {
 
   /* ---------- paired bars: HC budget vs filled positions (one axis, direct-labelled) ---------- */
 
-  function pairBars(items) {
-    const w = 640, rowH = 34, padT = 20, padL = 120, padR = 160;
+  function pairBars({ items, w = 640 }) {
+    const rowH = 34, padT = 20, padL = 120, padR = 160;
     const vals = items.flatMap((i) => [i.budget, i.filled]).filter((v) => v != null && isFinite(v));
     if (!vals.length) return '<div class="chart-empty">No data for this chart.</div>';
     const height = padT + items.length * rowH + 4;
@@ -255,11 +255,7 @@ const PosKit = (() => {
       const bw = X(it.budget), fw = X(it.filled);
       const fill = it.role === 'focus' ? 'var(--red)' : 'var(--ink-80)';
       const pct = it.budget ? ` · ${fmtPct(it.filled / it.budget * 100, 1)}` : '';
-      const attrs = [
-        it.tip ? `data-tip="${esc(it.tip)}"` : '',
-        it.setAsset ? `data-setasset="${esc(it.setAsset)}" style="cursor:pointer"` : ''
-      ].join(' ');
-      return `<g ${attrs}>
+      return `<g ${Charts.markAttrs(it, `${it.label}: ${fmtInt(it.filled)} filled, ${it.budget == null ? 'no budget row' : fmtInt(it.budget) + ' budget'}`)}>
         <rect x="0" y="${y}" width="${w}" height="${rowH}" fill="transparent"/>
         <text x="${padL - 8}" y="${y + rowH / 2 + 3.5}" text-anchor="end" class="bar-label">${esc(it.label)}</text>
         <rect x="${padL}" y="${y + 5}" width="${bw.toFixed(1)}" height="9" fill="var(--ink-20)"/>
@@ -268,7 +264,7 @@ const PosKit = (() => {
         <text x="${(padL + fw + 6).toFixed(1)}" y="${y + 27.5}" class="bar-value">${esc(fmtInt(it.filled))} filled<tspan class="ax">${esc(pct)}</tspan></text>
       </g>`;
     }).join('');
-    return `<svg viewBox="0 0 ${w} ${height}" role="img" preserveAspectRatio="xMidYMid meet"><title>HC budget vs filled positions</title>${legend}${bars}</svg>`;
+    return `<svg viewBox="0 0 ${w} ${height}" role="${items.some((it) => it.setAsset) ? 'group' : 'img'}" preserveAspectRatio="xMidYMid meet"><title>HC budget vs filled positions</title>${legend}${bars}</svg>`;
   }
 
   // table view state for the position register (memory only, this session)
@@ -282,7 +278,7 @@ const PosKit = (() => {
     fnOf, match, rows, stats, tally, isFilled, isVacant, isHeld, isActive, isAged, ageOf,
     cover, noOpenReq, reqText, budget, budgetBy, vacancyBy, cutItem, ageing,
     rowOf, urgency, listDrill, assetsFor, drillByAssetStatus, drillByAssetFunction, drillBudget,
-    positionIds, unpositioned, pairBars
+    positionIds, unpositioned, pairBars: (items) => Charts.fitted(pairBars, { items }, 480)
   };
 })();
 

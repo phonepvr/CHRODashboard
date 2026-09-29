@@ -63,11 +63,15 @@
   .data-table { font-size: 7.5pt; }
   .data-table th, .data-table td { padding: 1.4pt 5pt; }
 
-  .pp-method .data-table { font-size: 6.6pt; }
-  .pp-method .data-table th, .pp-method .data-table td { padding: 1.8pt 4pt; }
+  .pp-method .data-table { font-size: 6.6pt; table-layout: fixed; width: 100%; }
+  .pp-method .data-table th, .pp-method .data-table td { padding: 1.8pt 4pt; overflow-wrap: anywhere; }
+  .pp-method .data-table th:nth-child(1) { width: 26%; }
+  .pp-method .data-table th:nth-child(2) { width: 54%; }
+  .pp-method .data-table th:nth-child(3) { width: 20%; }
 
   .pp-footer {
     margin-top: auto;
+    break-inside: avoid;
     display: flex;
     gap: 8pt;
     align-items: baseline;

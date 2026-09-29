@@ -124,7 +124,7 @@ test.describe('Phase 8 — R9 Absenteeism tab', () => {
     expect(Math.abs(groupTotal - twelve)).toBeLessThanOrEqual(1);
     await expect(panel.locator('.abs-legend .abs-key')).toHaveCount(5);
     // clicking an asset row head focuses it (cross-filter)
-    await heat.locator('tbody th[data-setasset="Paradeep"]').click();
+    await heat.locator('tbody th [data-setasset="Paradeep"]').click();
     await expect(page.locator('#sel-asset')).toHaveValue('Paradeep');
     await expect(page.locator('#panel-absence table.abs-heat tbody tr.abs-focus th')).toHaveText('Paradeep');
     const pd = await page.evaluate(() => Compute.metric('absenteeism_pct').value);

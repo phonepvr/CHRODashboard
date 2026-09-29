@@ -490,14 +490,7 @@ const App = {
       const drillDl = e.target.closest('[data-drill-csv]');
       if (drillDl && App.__lastDrill) { Exports.drillCSV(App.__lastDrill); return; }
       const setAsset = e.target.closest('[data-setasset]');
-      if (setAsset) {
-        if (!Access.canFocusAsset(setAsset.dataset.setasset)) return;
-        App.state.filters.asset = setAsset.dataset.setasset;
-        document.getElementById('sel-asset').value = setAsset.dataset.setasset;
-        UI.invalidateTabs();
-        refreshChrome();
-        return;
-      }
+      if (setAsset) { focusAsset(setAsset.dataset.setasset); return; }
       const drill = e.target.closest('[data-drill]');
       if (drill && !e.target.closest('[data-info]')) openDrill(drill.dataset.drill);
     });
@@ -520,11 +513,26 @@ const App = {
       tip.style.top = y + 'px';
     });
     document.addEventListener('keydown', (e) => {
-      if ((e.key === 'Enter' || e.key === ' ') && e.target.matches('[data-drill][role="button"]')) {
+      if (e.key !== 'Enter' && e.key !== ' ') return;
+      if (e.target.matches('[data-setasset][role="button"]')) {
+        e.preventDefault();
+        focusAsset(e.target.dataset.setasset, true);
+      } else if (e.target.matches('[data-drill][role="button"]')) {
         e.preventDefault();
         openDrill(e.target.dataset.drill);
       }
     });
+  }
+
+  // cross-filter from a chart mark; from the keyboard, focus returns to the
+  // same mark in the re-rendered tab
+  function focusAsset(a, keyboard = false) {
+    if (!Access.canFocusAsset(a)) return;
+    App.state.filters.asset = a;
+    document.getElementById('sel-asset').value = a;
+    UI.invalidateTabs();
+    refreshChrome();
+    if (keyboard) document.querySelector(`#panel-${App.state.activeTab} [data-setasset="${CSS.escape(a)}"][role="button"]`)?.focus();
   }
 
   // Row-level choke point: only 'full' metrics drill, and every drill passes
@@ -557,6 +565,7 @@ const App = {
   /* ---------- boot ---------- */
 
   document.addEventListener('DOMContentLoaded', () => {
+    Charts.observe(document.getElementById('tab-panels'));
     UI.renderTabbar();
     initControls();
     initGate();

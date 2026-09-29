@@ -199,7 +199,7 @@ TabRenderers.absence = (panel) => {
       const focus = g.a === ctx.asset;
       const rowHead = locked
         ? `<th scope="row">${esc(g.a)}</th>`
-        : `<th scope="row" data-setasset="${esc(g.a)}" data-tip="${esc(g.a === 'Group' ? 'Group (all assets)\nClick to reset focus' : 'Click to focus ' + g.a)}">${esc(g.a)}</th>`;
+        : `<th scope="row"><button type="button" class="abs-asset" data-setasset="${esc(g.a)}" data-tip="${esc(g.a === 'Group' ? 'Group (all assets)\nClick to reset focus' : 'Click to focus ' + g.a)}" aria-label="${esc(g.a === 'Group' ? 'Group — reset the asset focus' : 'Focus ' + g.a)}">${esc(g.a)}</button></th>`;
       const tds = g.cells.map((c) => {
         const where = `${g.a} · ${monthIdxToLabel(c.mi)}`;
         if (!c.t.rows) return `<td class="num abs-h-na" data-tip="${esc(where + '\nNo absence rows')}">—</td>`;

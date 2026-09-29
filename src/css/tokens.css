@@ -47,7 +47,7 @@
   --series-focus: var(--red);
   --series-group: var(--black);
   --series-ctx-1: var(--ink-55);
-  --series-ctx-2: var(--ink-30);
+  --series-ctx-2: #8F8F8F;          /* 3.2:1 on white — a line must reach 3:1 (its label uses --ink-55) */
   --series-fill: var(--red-10);
   --projected: var(--ink-55);
 

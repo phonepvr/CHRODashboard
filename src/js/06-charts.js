@@ -7,7 +7,8 @@
    - one axis per chart, thin marks, recessive grid, tabular figures;
    - secondary colours appear only as status accents, never as fills.
    Interactivity: marks carry data-tip for the shared hover tooltip; bars can
-   carry data-setasset (cross-filter) or data-drill. */
+   carry data-setasset (cross-filter) or data-drill — keyboard buttons too
+   (markAttrs; Enter / Space in 99-main). */
 
 const Charts = (() => {
 
@@ -18,6 +19,23 @@ const Charts = (() => {
     ctx2: 'var(--series-ctx-2)',
     projected: 'var(--projected)'
   };
+  // direct labels carry identity, so every label is AA text (--ink-55 or darker)
+  // even where its context line is lighter
+  const LABEL_COLOR = { focus: 'var(--series-focus)', group: 'var(--series-group)' };
+  const labelColor = (role) => LABEL_COLOR[role] || 'var(--ink-55)';
+
+  // attributes of a bar / row mark: tooltip, and — for a drill (full table) or a
+  // cross-filter (focus an asset) — a keyboard button with a spoken name
+  function markAttrs(it, name) {
+    const act = it.setAsset ? `focus ${it.setAsset}` : it.drill ? 'open the full table' : null;
+    return [
+      it.tip ? `data-tip="${esc(it.tip)}"` : '',
+      it.setAsset ? `data-setasset="${esc(it.setAsset)}"` : '',
+      it.drill ? `data-drill="${esc(it.drill)}"` : '',
+      act ? `style="cursor:pointer" tabindex="0" role="button" aria-label="${esc(`${name} — ${act}`)}"` : ''
+    ].join(' ');
+  }
+  const svgRole = (items) => (items.some((it) => it.drill || it.setAsset) ? 'group' : 'img');
 
   function niceTicks(min, max, n = 4) {
     if (min === max) { max = min + 1; }
@@ -58,8 +76,7 @@ const Charts = (() => {
   /* ---------- multi-series line ----------
      { months: [monthIdx…], series: [{label, values, role, dashed}],
        yFmt, target, band: {upper, lower, label}, title } */
-  function line({ months, series, yFmt = (v) => fmtNum(v, 1), target = null, band = null, title = '', h = 220 }) {
-    const w = 640;
+  function line({ months, series, yFmt = (v) => fmtNum(v, 1), target = null, band = null, title = '', h = 220, w = 640 }) {
     const padL = 46, padR = 86, padT = 12, padB = 24;
     const iw = w - padL - padR, ih = h - padT - padB;
     const all = series.flatMap((s) => s.values).concat(target != null ? [target] : [])
@@ -81,7 +98,7 @@ const Charts = (() => {
       `<line x1="${padL}" y1="${Y(t)}" x2="${padL + iw}" y2="${Y(t)}" stroke="var(--ink-10)" stroke-width="1"/>
        <text x="${padL - 6}" y="${Y(t) + 3.5}" text-anchor="end" class="ax">${esc(yFmt(t))}</text>`).join('');
 
-    const xStep = Math.max(1, Math.ceil(months.length / 8));
+    const xStep = Math.max(1, Math.ceil(months.length / Math.max(3, Math.floor(iw / 64))));
     const xLabels = months.map((mi, i) => i % xStep === 0
       ? `<text x="${X(i)}" y="${h - 6}" text-anchor="middle" class="ax">${esc(monthIdxToLabel(mi))}</text>` : '').join('');
 
@@ -104,12 +121,21 @@ const Charts = (() => {
       const lastIdx = s.values.map((v, i) => v != null && isFinite(v) ? i : null).filter((v) => v != null).pop();
       return lastIdx == null ? null : { s, y: Y(s.values[lastIdx]) };
     }).filter(Boolean).sort((a, b) => a.y - b.y);
+    // down from the top, then — when the lowest passes the floor — back up from
+    // the floor, so two labels never share a line
+    const GAP = 13, floor = h - padB - 2;
     for (let i = 1; i < labels.length; i++) {
-      if (labels[i].y - labels[i - 1].y < 12) labels[i].y = labels[i - 1].y + 12;
+      if (labels[i].y - labels[i - 1].y < GAP) labels[i].y = labels[i - 1].y + GAP;
+    }
+    if (labels.length && labels[labels.length - 1].y > floor) {
+      labels[labels.length - 1].y = floor;
+      for (let i = labels.length - 2; i >= 0; i--) {
+        if (labels[i + 1].y - labels[i].y < GAP) labels[i].y = labels[i + 1].y - GAP;
+      }
     }
     const labelSvg = labels.map(({ s, y }) =>
-      `<text x="${padL + iw + 6}" y="${(Math.min(y, h - padB - 2)).toFixed(1)}" class="series-label"
-        fill="${SERIES_COLOR[s.role] || SERIES_COLOR.ctx1}">${esc(s.label)}</text>`).join('');
+      `<text x="${padL + iw + 6}" y="${y.toFixed(1)}" class="series-label"
+        fill="${labelColor(s.role)}">${esc(s.label)}</text>`).join('');
     const paths = sorted.map((s) => {
       const pts = s.values.map((v, i) => v == null || !isFinite(v) ? null : `${X(i).toFixed(1)},${Y(v).toFixed(1)}`);
       const col = SERIES_COLOR[s.role] || SERIES_COLOR.ctx1;
@@ -135,52 +161,61 @@ const Charts = (() => {
 
   /* ---------- horizontal bars ----------
      { items: [{label, value, sub, tip, setAsset, drill, role}], fmt, target } */
-  function barH({ items, fmt = (v) => fmtNum(v, 1), target = null, h = null }) {
-    const w = 640;
+  // estimated rendered width (viewBox units) of a bar's value label: .bar-value
+  // 11.5px bold, its sub-label .ax 10px
+  const valueWidth = (text, sub) => String(text).length * 7.1 + (sub ? 4 + String(sub).length * 5.7 : 0);
+
+  function barH({ items, fmt = (v) => fmtNum(v, 1), target = null, h = null, w = 640 }) {
     const rowH = 26, padT = 6, padL = 120, padR = 70;
     const height = h || padT * 2 + items.length * rowH;
     const vals = items.map((i) => i.value).filter((v) => v != null && isFinite(v));
     if (!vals.length) return `<div class="chart-empty">No data for this chart.</div>`;
     const max = Math.max(...vals, target ?? 0, 0) || 1;
     const iw = w - padL - padR;
-    const X = (v) => Math.max(0, v / max * iw);
+    const text = (it) => (it.value == null ? '—' : fmt(it.value));
+    // the longest bar may not push its value label past the right edge
+    let k = iw / max;
+    for (const it of items) {
+      if (it.value > 0) k = Math.min(k, (w - padL - 10 - valueWidth(text(it), it.sub)) / it.value);
+    }
+    const X = (v) => Math.max(0, v * k);
     const bars = items.map((it, r) => {
       const y = padT + r * rowH;
       const bw = it.value == null ? 0 : X(it.value);
       const col = it.role === 'focus' ? 'var(--red)' : it.role === 'ctx' ? 'var(--ink-30)' : 'var(--ink-80)';
-      const attrs = [
-        it.tip ? `data-tip="${esc(it.tip)}"` : '',
-        it.setAsset ? `data-setasset="${esc(it.setAsset)}" style="cursor:pointer"` : '',
-        it.drill ? `data-drill="${esc(it.drill)}" style="cursor:pointer"` : ''
-      ].join(' ');
-      return `<g ${attrs}>
+      return `<g ${markAttrs(it, `${it.label}: ${text(it)}${it.sub ? ' ' + it.sub : ''}`)}>
         <text x="${padL - 8}" y="${y + rowH / 2 + 3.5}" text-anchor="end" class="bar-label">${esc(it.label)}</text>
         <rect x="${padL}" y="${y + 4}" width="${bw.toFixed(1)}" height="${rowH - 10}" fill="${col}" rx="0"/>
-        <text x="${padL + bw + 6}" y="${y + rowH / 2 + 3.5}" class="bar-value">${it.value == null ? '—' : esc(fmt(it.value))}${it.sub ? ` <tspan class="ax">${esc(it.sub)}</tspan>` : ''}</text>
+        <text x="${(padL + bw + 6).toFixed(1)}" y="${y + rowH / 2 + 3.5}" class="bar-value">${esc(text(it))}${it.sub ? ` <tspan class="ax">${esc(it.sub)}</tspan>` : ''}</text>
       </g>`;
     }).join('');
+    // the target's label sits in the 12-unit band above the first bar
     const targetLine = target != null
-      ? `<line x1="${padL + X(target)}" y1="${padT + 10}" x2="${padL + X(target)}" y2="${height - padT}"
+      ? `<line x1="${padL + X(target)}" y1="${padT - 4}" x2="${padL + X(target)}" y2="${height - padT}"
           stroke="var(--ink-70)" stroke-width="1" stroke-dasharray="2 4"/>
-         <text x="${padL + X(target)}" y="${padT + 8}" text-anchor="middle" class="ax">target ${esc(fmt(target))}</text>` : '';
-    return `<svg viewBox="0 0 ${w} ${height + (target != null ? 12 : 0)}" role="img" preserveAspectRatio="xMidYMid meet">${target != null ? `<g transform="translate(0,12)">${bars}${targetLine}</g>` : bars + targetLine}</svg>`;
+         <text x="${padL + X(target)}" y="${padT - 8}" text-anchor="middle" class="ax">target ${esc(fmt(target))}</text>` : '';
+    return `<svg viewBox="0 0 ${w} ${height + (target != null ? 12 : 0)}" role="${svgRole(items)}" preserveAspectRatio="xMidYMid meet">${target != null ? `<g transform="translate(0,12)">${bars}${targetLine}</g>` : bars + targetLine}</svg>`;
   }
 
   /* ---------- funnel (counts, stage-to-stage conversion) ---------- */
-  function funnel({ stages }) {
-    const w = 640, rowH = 30, padT = 4, padL = 210, padR = 90;
+  function funnel({ stages, w = 640 }) {
+    const rowH = 30, padT = 4, padL = 210, padR = 90;
     const height = padT * 2 + stages.length * rowH;
     const max = Math.max(...stages.map((s) => s.value ?? 0), 1);
     const iw = w - padL - padR;
+    const conv = (s, i) => (i > 0 && stages[i - 1].value ? ` ${fmtPct((s.value ?? 0) / stages[i - 1].value * 100, 0)} of prior` : '');
+    // as barH: the longest bar may not push its label past the right edge
+    let k = iw / max;
+    stages.forEach((s, i) => { if (s.value > 0) k = Math.min(k, (w - padL - 10 - valueWidth(fmtInt(s.value), conv(s, i))) / s.value); });
     const rows = stages.map((s, i) => {
       const y = padT + i * rowH;
-      const bw = (s.value ?? 0) / max * iw;
-      const conv = i > 0 && stages[i - 1].value ? ` ${fmtPct((s.value ?? 0) / stages[i - 1].value * 100, 0)} of prior` : '';
-      return `<g data-tip="${esc(s.label + ': ' + fmtInt(s.value ?? 0) + conv)}">
+      const bw = (s.value ?? 0) * k;
+      const cv = conv(s, i);
+      return `<g data-tip="${esc(s.label + ': ' + fmtInt(s.value ?? 0) + cv)}">
         <text x="${padL - 8}" y="${y + rowH / 2 + 3.5}" text-anchor="end" class="bar-label">${esc(s.label)}</text>
         <rect x="${padL}" y="${y + 5}" width="${Math.max(1.5, bw).toFixed(1)}" height="${rowH - 12}"
           fill="${i === 0 ? 'var(--black)' : i === stages.length - 1 ? 'var(--red)' : 'var(--ink-70)'}"/>
-        <text x="${padL + Math.max(1.5, bw) + 6}" y="${y + rowH / 2 + 3.5}" class="bar-value">${fmtInt(s.value ?? 0)}<tspan class="ax">${esc(conv)}</tspan></text>
+        <text x="${padL + Math.max(1.5, bw) + 6}" y="${y + rowH / 2 + 3.5}" class="bar-value">${fmtInt(s.value ?? 0)}<tspan class="ax">${esc(cv)}</tspan></text>
       </g>`;
     }).join('');
     return `<svg viewBox="0 0 ${w} ${height}" role="img" preserveAspectRatio="xMidYMid meet">${rows}</svg>`;
@@ -188,8 +223,8 @@ const Charts = (() => {
 
   /* ---------- donut (two-to-four segments, labelled, never colour-alone) ----------
      shares: false drops the percentages (a withheld segment would make them 100%) */
-  function donut({ items, centerLabel = '', h = 190, shares = true }) {
-    const w = 640, cx = 160, cy = h / 2, R = Math.min(h / 2 - 14, 74), r = R - 22;
+  function donut({ items, centerLabel = '', h = 190, shares = true, w = 640 }) {
+    const cy = h / 2, R = Math.min(h / 2 - 14, 74), r = R - 22, cx = Math.min(160, R + 30 + (w - 420) / 4);
     const total = items.reduce((s, i) => s + (i.value || 0), 0);
     if (!total) return `<div class="chart-empty">No data for this chart.</div>`;
     const cols = ['var(--red)', 'var(--ink-80)', 'var(--ink-40)', 'var(--ink-20)'];
@@ -209,7 +244,7 @@ const Charts = (() => {
         data-tip="${esc(`${it.label}: ${fmtInt(it.value)}${shares ? ` (${fmtPct(frac * 100, 1)})` : ''}`)}"/>`;
     }).join('');
     const legend = items.map((it, i) => `
-      <g transform="translate(300, ${cy - items.length * 11 + i * 22})">
+      <g transform="translate(${cx + R + 66}, ${cy - items.length * 11 + i * 22})">
         <rect width="11" height="11" y="-9" fill="${cols[i % cols.length]}"/>
         <text x="17" class="bar-label">${esc(it.label)} — ${fmtInt(it.value)}${shares ? ` (${fmtPct((it.value || 0) / total * 100, 1)})` : ''}</text>
       </g>`).join('');
@@ -236,5 +271,51 @@ const Charts = (() => {
     </div>`;
   }
 
-  return { spark, line, barH, funnel, donut, card, niceTicks };
+  /* ---------- fit to the card ----------
+     A chart is drawn for a 640-unit viewBox and scaled to its card, so in a 2-
+     to 4-up card its text would render at 5–8 px. Each chart keeps its
+     arguments (memory only); once in the page, one scaled below FIT is redrawn
+     for a narrower viewBox (never below its layout minimum), so text keeps at
+     least FIT of its size. Hidden charts (width 0, e.g. the print pack) keep 640. */
+  const FIT = 0.9;
+  const drawn = new Map();          // id -> {fn, args, minW}
+  let seq = 0;
+  const tag = (out, id, w) => out.replace('<svg ', `<svg data-chart="${id}" data-w="${w}" `);
+  function fitted(fn, args, minW) {
+    const out = fn(args);
+    if (!out.startsWith('<svg')) return out;
+    drawn.set(++seq, { fn, args, minW });
+    return tag(out, seq, args.w || 640);
+  }
+  function refit() {
+    const live = new Set();
+    const todo = [];
+    for (const svg of document.querySelectorAll('svg[data-chart]')) {
+      const id = +svg.dataset.chart, d = drawn.get(id);
+      live.add(id);
+      const px = svg.getBoundingClientRect().width;
+      if (!d || !px) continue;
+      const want = Math.round(Math.max(d.minW, Math.min(640, px / FIT)));
+      if (Math.abs(want - +svg.dataset.w) >= 12) todo.push([svg, id, d, want]);
+    }
+    for (const id of drawn.keys()) if (!live.has(id)) drawn.delete(id);
+    for (const [svg, id, d, want] of todo) svg.outerHTML = tag(d.fn({ ...d.args, w: want }), id, want);
+  }
+  // redraw after any render into `root` and on resize
+  function observe(root) {
+    let queued = false;
+    const run = () => { queued = false; refit(); };
+    new MutationObserver((recs) => {
+      if (queued || !recs.some((r) => r.addedNodes.length)) return;
+      queued = true;
+      queueMicrotask(run);
+    }).observe(root, { childList: true, subtree: true });
+    window.addEventListener('resize', debounce(refit, 150));
+  }
+
+  return {
+    spark, niceTicks, card, markAttrs, fitted, refit, observe,
+    line: (a) => fitted(line, a, 340), barH: (a) => fitted(barH, a, 380),
+    funnel: (a) => fitted(funnel, a, 480), donut: (a) => fitted(donut, a, 420)
+  };
 })();

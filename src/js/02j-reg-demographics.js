@@ -227,8 +227,8 @@ const DemoKit = (() => {
      recessive grid, direct labels, data-tip on every mark. */
 
   // single-series trend with a label on every point; marks = {index: 'A'|'B'|'C'}
-  function trendLine({ months, values, marks = {}, yFmt = (v) => fmtInt(v), title = '', h = 214 }) {
-    const w = 640, padL = 46, padR = 22, padT = 26, padB = 24;
+  function trendLine({ months, values, marks = {}, yFmt = (v) => fmtInt(v), title = '', h = 214, w = 640 }) {
+    const padL = 46, padR = 22, padT = 26, padB = 24;
     const iw = w - padL - padR, ih = h - padT - padB;
     const vals = values.filter((v) => v != null && isFinite(v));
     if (vals.length < 2) return '<div class="chart-empty">Series too short to draw — need at least two months of data.</div>';
@@ -262,8 +262,8 @@ const DemoKit = (() => {
   }
 
   // vertical columns (superannuation buckets); items [{label, value, sub, tip, role}]
-  function columns({ items, fmt = (v) => fmtInt(v), h = 200 }) {
-    const w = 640, padL = 14, padR = 14, padT = 30, padB = 36;
+  function columns({ items, fmt = (v) => fmtInt(v), h = 200, w = 640 }) {
+    const padL = 14, padR = 14, padT = 30, padB = 36;
     const vals = items.map((i) => i.value).filter((v) => v != null && isFinite(v));
     if (!vals.length) return '<div class="chart-empty">No data for this chart.</div>';
     const max = Math.max(...vals, 1);
@@ -462,7 +462,9 @@ const DemoKit = (() => {
     homeState, hasDomicile, isLocal, monthsToSuper, superBucket, SUPER_MAX,
     assetsInScope, levelRank, detailRows, hcDrill, DETAIL_COLS, DETAIL_PII,
     budgetMonth, bvaTree, bvaRows, bvaDrill, bvaTotals, bvaSeries, BVA_IN, variance, variancePct, BVA_COLS, bridgeDrill,
-    dimItems, trendLine, columns, bvaHTML, wireBva, detailsHTML, wireDetails,
+    dimItems, bvaHTML, wireBva, detailsHTML, wireDetails,
+    // every point carries a label, so the trend keeps most of its width
+    trendLine: (a) => Charts.fitted(trendLine, a, 560), columns: (a) => Charts.fitted(columns, a, 360),
     // distribution bars from [label, lo, hi) buckets (age / tenure on the permanent roll);
     // `suppress` applies the small-cell rule, as dimItems does, to a personal attribute (age)
     bucketBarItems(pop, buckets, valueOf, { suppress = false } = {}) {

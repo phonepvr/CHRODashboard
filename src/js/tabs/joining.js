@@ -69,8 +69,8 @@ TabRenderers.joining = (() => {
     return rows;
   }
 
-  function trendSVG(months, rows, fyIdx) {
-    const w = 640, h = 214, padL = 36, padR = 18, padT = 22, padB = 26;
+  function trendSVG({ months, rows, fyIdx, w = 640 }) {
+    const h = 214, padL = 36, padR = 18, padT = 22, padB = 26;
     const iw = w - padL - padR, ih = h - padT - padB;
     const inset = 16;               // keeps the end point labels clear of the y-axis
     const vals = rows.map((r) => r.n);
@@ -115,7 +115,7 @@ TabRenderers.joining = (() => {
     return Charts.card({
       title: 'Hiring trend — month on month', infoKey: 'join_hires_12m',
       sub: `${monthIdxToLabel(months[0])} – ${monthIdxToLabel(ctx.endMonth)} · current fiscal year in red · labels = hires in the month`,
-      body: need([JoinKit.EMP], () => trendSVG(months, monthly(m, ctx, months), fyIdx < 0 ? null : fyIdx)),
+      body: need([JoinKit.EMP], () => Charts.fitted(trendSVG, { months, rows: monthly(m, ctx, months), fyIdx: fyIdx < 0 ? null : fyIdx }, 560)),
       note: 'Hover a month for the women and hire-type split. Joiners who have since exited are included.'
     });
   }

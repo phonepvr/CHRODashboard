@@ -40,31 +40,46 @@ test.describe('Phase 5 — outlook, print pack, exports', () => {
 
   test('print pack pre-renders: cover + Group + 4 assets + quality + methodology, footers numbered', async ({ page }) => {
     await loadMock(page);
-    // pack builds on idle after load
-    await expect.poll(() => page.locator('#print-root .print-page').count(), { timeout: 10_000 }).toBe(8);
+    // pack builds on idle after load; the appendix is cut into sheet-sized sections
+    await expect.poll(() => page.locator('#print-root .print-page:not(.pp-method-page)').count(), { timeout: 10_000 }).toBe(7);
     const pages = page.locator('#print-root .print-page');
+    const total = await pages.count();
+    const method = await page.locator('#print-root .pp-method-page').count();
+    expect(method).toBeGreaterThan(1);
+    expect(total).toBe(7 + method);
     await expect(pages.nth(0)).toContainText('HR Dashboard');
     await expect(pages.nth(0)).toContainText('ILLUSTRATIVE DATA');
     await expect(pages.nth(1)).toContainText('Group executive summary');
     for (const [i, asset] of [[2, 'Hazira'], [3, 'Paradeep'], [4, 'Vizag'], [5, 'Kirandul']]) {
       await expect(pages.nth(i)).toContainText(`${asset} — Asset HR head summary`);
-      await expect(pages.nth(i).locator('.pp-footer')).toContainText(`Page ${i + 1} of 8`);
-      await expect(pages.nth(i).locator('.pp-footer')).toContainText('Smarter Steels. Brighter Futures.');
-      await expect(pages.nth(i).locator('.pp-footer')).toContainText('Illustrative data');
     }
     await expect(pages.nth(6)).toContainText('Data quality');
-    await expect(pages.nth(7)).toContainText('Methodology appendix');
+    await expect(pages.nth(7)).toContainText('Methodology appendix (1 of');
+    // every section — each appendix sheet too — carries the full footer and its number
+    for (let i = 0; i < total; i++) {
+      const foot = pages.nth(i).locator('.pp-footer');
+      await expect(foot).toContainText(`Page ${i + 1} of ${total}`);
+      await expect(foot).toContainText('Smarter Steels. Brighter Futures.');
+      await expect(foot).toContainText('Illustrative data');
+      await expect(foot).toContainText('Confidential');
+    }
+    // the appendix still lists every registry metric exactly once
+    expect(await page.locator('#print-root .pp-method-page tbody tr').count()).toBe(await page.evaluate(() => REGISTRY.length));
   });
 
   test('page.pdf() paginates the pack with no tile split across pages', async ({ page }) => {
     await loadMock(page);
-    await expect.poll(() => page.locator('#print-root .print-page').count(), { timeout: 10_000 }).toBe(8);
+    await expect.poll(() => page.locator('#print-root .print-page:not(.pp-method-page)').count(), { timeout: 10_000 }).toBe(7);
     const sheets = (pdf) => (pdf.toString('latin1').match(/\/Type\s*\/Page[^s]/g) || []).length;
     const pdf = await page.pdf({ format: 'A4', preferCSSPageSize: true });
     expect(pdf.byteLength).toBeGreaterThan(60_000);
-    // 8 logical sections; methodology may flow over several sheets
-    expect(sheets(pdf)).toBeGreaterThanOrEqual(8);
-    expect(sheets(pdf)).toBeLessThan(30);
+    // one sheet per section — the methodology sections included — so every sheet
+    // carries a footer and "Page n of m" counts sheets
+    expect(sheets(pdf)).toBe(await page.locator('#print-root .print-page').count());
+    for (const persona of ['asset_head', 'chro']) {
+      await page.evaluate((id) => { App.setPersona(id); PrintPack.ensureFresh(); }, persona);
+      expect(sheets(await page.pdf({ format: 'A4', preferCSSPageSize: true })), persona).toBe(await page.locator('#print-root .print-page').count());
+    }
     // every unit page (Group + each asset, with the workforce & talent row) fits ONE
     // A4 sheet, so no tile can split across sheets — for CHRO and for a persona whose
     // restricted tiles print as locks. Print the cover + unit pages only and count.
