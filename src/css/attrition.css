@@ -1,0 +1,78 @@
+/* ============================================================
+   Attrition tab (R5) — page-level exit-type toggle, YTD strip,
+   toggle-scoped rate cuts and the employee-wise details card.
+   Brand: black/grey structure, Smart Red only for focus/selection
+   accents; the diagonal stroke stays on .section-head only.
+   ============================================================ */
+
+/* page-level toggle bar: stays in reach while the cuts scroll past */
+.attr-bar {
+  position: sticky; top: 0; z-index: 5;
+  display: flex; align-items: center; flex-wrap: wrap; gap: 6px 14px;
+  margin: 0 0 4px;
+  padding: 7px 10px;
+  background: var(--white);
+  border: var(--hairline);
+  border-left: 3px solid var(--black);
+}
+.attr-toggle { display: inline-flex; align-items: center; gap: 0; }
+.attr-toggle-k {
+  margin-right: 8px;
+  font-size: 10.5px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase;
+  color: var(--ink-55);
+}
+.attr-opt { position: relative; display: inline-flex; cursor: pointer; }
+.attr-opt input {
+  position: absolute; inset: 0; margin: 0; z-index: 2;   /* on top: the radio itself takes the click */
+  width: 100%; height: 100%;
+  opacity: 0; cursor: pointer;          /* native radio keeps arrow-key behaviour */
+}
+.attr-opt span {
+  display: inline-block;
+  padding: 4px 12px;
+  font-size: 12.5px; font-weight: 600;
+  color: var(--ink-70);
+  border: 1px solid var(--ink-20);
+  margin-left: -1px;
+  background: var(--white);
+}
+.attr-opt:first-of-type span { margin-left: 0; }
+.attr-opt:hover span { color: var(--black); border-color: var(--ink-55); position: relative; }
+.attr-opt input:checked + span {
+  background: var(--black); border-color: var(--black); color: var(--white);
+  box-shadow: inset 0 -3px 0 var(--red);   /* selected = black with the red accent, like the tab bar */
+  position: relative;
+}
+.attr-opt input:focus-visible + span { outline: var(--focus-ring); outline-offset: 1px; position: relative; z-index: 1; }
+.attr-bar-note { font-size: 11.5px; color: var(--ink-55); flex: 1 1 320px; }
+
+/* KPI strip: six tiles on one row on wide screens */
+.attr-strip .tile-grid { grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); }
+
+/* toggle-scoped rate cuts: denser cards */
+.attr-cuts { grid-template-columns: repeat(auto-fit, minmax(520px, 1fr)); }
+.attr-cuts .card-sub { min-height: 1.3em; }
+
+/* employee-wise details */
+.attr-details { margin-top: 0; }
+.attr-details-bar {
+  display: flex; align-items: center; flex-wrap: wrap; gap: 6px 14px;
+  margin: 4px 0 8px;
+  font-size: 12px;
+}
+.attr-details-count { font-weight: 700; }
+.attr-details-mask { color: var(--ink-55); font-size: 11.5px; }
+.attr-details-bar .btn { margin-left: auto; }
+.attr-details .table-scroll { max-height: 520px; overflow: auto; }
+.attr-details .data-table th { position: sticky; top: 0; background: var(--white); z-index: 1; }
+.attr-details .data-table td { white-space: nowrap; font-variant-numeric: tabular-nums; }
+
+@media (max-width: 900px) {
+  .attr-cuts { grid-template-columns: 1fr; }
+  .attr-bar { position: static; }
+}
+
+@media print {
+  .attr-bar { position: static; }
+  .attr-details .table-scroll { max-height: none; overflow: visible; }
+}
