@@ -1,0 +1,59 @@
+/* ============================================================
+   Positions & Budget tab (R8). Sharp edges, brand inks; the
+   register's view buttons carry their state in text + fill,
+   aged vacancies in bold status ink (never colour alone — the
+   day count is printed).
+   ============================================================ */
+
+.pos-lead { margin-bottom: 4px; font-size: 12.5px; }
+.pos-cards { margin-top: 10px; }
+/* two charts per row from tablet to laptop (labels stay legible), three on a wide screen */
+.pos-grid { grid-template-columns: repeat(auto-fit, minmax(min(480px, 100%), 1fr)); }
+
+/* register toolbar: view toggles · filter · CSV */
+.pos-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin: 6px 0 8px;
+}
+.pos-view {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 5px;
+  padding: 4px 10px;
+  border: 1px solid var(--ink-20);
+  border-radius: 0;
+  background: var(--white);
+  color: var(--ink-70);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.pos-view:hover { border-color: var(--black); color: var(--black); }
+.pos-view[aria-pressed="true"] { border-color: var(--black); background: var(--black); color: var(--white); }
+.pos-view .pos-n { font-variant-numeric: tabular-nums; font-weight: 700; }
+.pos-view:focus-visible, .pos-q:focus-visible, .pos-csv:focus-visible { outline: var(--focus-ring); outline-offset: 1px; }
+.pos-q {
+  min-width: 230px;
+  padding: 4px 8px;
+  border: 1px solid var(--ink-20);
+  border-radius: 0;
+  background: var(--white);
+  font-size: 12.5px;
+  color: var(--black);
+}
+.pos-toolbar .pos-csv { margin-left: auto; padding: 4px 10px; font-size: 12px; }
+.pos-toolbar .pos-csv[disabled], .pos-toolbar .pos-csv[disabled]:hover {
+  border-color: var(--ink-20); color: var(--ink-40); background: var(--white); cursor: not-allowed;
+}
+
+/* register table: bounded height, sticky header, tabular day counts */
+.pos-count { margin: 0 0 4px; }
+.pos-table .table-scroll { max-height: 480px; overflow: auto; border-bottom: var(--hairline); }
+.pos-table .data-table th { position: sticky; top: 0; background: var(--white); z-index: 1; }
+.pos-table .data-table td { white-space: nowrap; font-variant-numeric: tabular-nums; }
+.pos-table .data-table td:nth-child(2) { white-space: normal; min-width: 180px; }
+.pos-num { display: block; text-align: right; font-variant-numeric: tabular-nums; }
+.pos-aged { color: var(--status-bad-ink); font-weight: 700; }
