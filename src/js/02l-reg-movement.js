@@ -192,10 +192,16 @@ const MoveKit = (() => {
     return { axis, cells, n, months, get: (a, b) => cells.get(a + '\u0001' + b) || 0 };
   }
 
-  /* ---------- row-level: change text, drills, history ---------- */
+  /* ---------- row-level: change text, drills, history ----------
+     Counts keep the From/To rule, but identified rows must not undo the
+     'Other assets' pooling: for an asset-locked persona a peer asset's name
+     reads 'Other assets', and a scope-locked persona is listed only people
+     whose current master record is in scope (the history lookup's rule). */
 
-  const stateTo = (x) => ({ asset: x.r.to_asset ?? x.r.from_asset, function: x.r.to_function ?? x.r.from_function, level: x.r.to_level ?? x.r.from_level, company: x.r.to_company ?? x.r.from_company, segment: x.r.to_segment ?? x.r.from_segment });
-  const stateFrom = (x) => ({ asset: x.r.from_asset ?? x.r.to_asset, function: x.r.from_function ?? x.r.to_function, level: x.r.from_level ?? x.r.to_level, company: x.r.from_company ?? x.r.to_company, segment: x.r.from_segment ?? x.r.to_segment });
+  const pool = (a) => (a == null || !Access.lockedAsset() || Access.chartScopes().includes(a) ? a : 'Other assets');
+  const rowScoped = (ctx, x) => Access.persona().scope === 'all' || (!!x.e && Compute.empMatch(x.e, ctx));
+  const stateTo = (x) => ({ asset: pool(x.r.to_asset ?? x.r.from_asset), function: x.r.to_function ?? x.r.from_function, level: x.r.to_level ?? x.r.from_level, company: x.r.to_company ?? x.r.from_company, segment: x.r.to_segment ?? x.r.from_segment });
+  const stateFrom = (x) => ({ asset: pool(x.r.from_asset ?? x.r.to_asset), function: x.r.from_function ?? x.r.to_function, level: x.r.from_level ?? x.r.to_level, company: x.r.from_company ?? x.r.to_company, segment: x.r.from_segment ?? x.r.to_segment });
   const stateOf = (e) => (e ? { asset: e.asset, function: e.function, level: e.level, company: e.company, segment: e.__seg !== 'Unassigned' ? e.__seg : null } : {});
 
   // [{label, from, to}] for each attribute that changed
@@ -203,7 +209,7 @@ const MoveKit = (() => {
     const out = [];
     for (const [k, label] of ATTRS) {
       const f = x.r['from_' + k], t = x.r['to_' + k];
-      if ((f != null || t != null) && f !== t) out.push({ label, from: f ?? '—', to: t ?? '—' });
+      if ((f != null || t != null) && f !== t) out.push({ label, from: (k === 'asset' ? pool(f) : f) ?? '—', to: (k === 'asset' ? pool(t) : t) ?? '—' });
     }
     return out;
   }
@@ -218,30 +224,34 @@ const MoveKit = (() => {
   function listRows(recs) {
     return recs.map((x) => {
       const s = stateTo(x);
-      return [x.r.employee_id, x.e?.name || '', fmtDMY(x.day), x.type, changeText(x), s.asset || x.e?.asset || '', s.function || x.e?.function || '', s.level || x.e?.level || ''];
+      return [x.r.employee_id, x.e?.name || '', fmtDMY(x.day), x.type, changeText(x), s.asset || pool(x.e?.asset) || '', s.function || x.e?.function || '', s.level || x.e?.level || ''];
     });
   }
   const latestFirst = (a, b) => b.day - a.day || b.r.__row - a.r.__row;
+  // title suffix when people now outside the persona's scope are counted but not listed
+  const unlisted = (n, listed) => (n > listed ? ` — ${fmtInt(listed)} listed; people now outside this persona’s scope are counted, not listed` : '');
   function drillList(m, ctx, types, what) {
-    const recs = inScope(m, ctx, { types }).sort(latestFirst);
+    const all = inScope(m, ctx, { types });
+    const recs = all.filter((x) => rowScoped(ctx, x)).sort(latestFirst);
     const shown = recs.slice(0, DRILL_CAP);
     return {
-      title: `${what} in period (${fmtInt(recs.length)})${recs.length > shown.length ? ` — latest ${fmtInt(shown.length)}` : ''}`,
+      title: `${what} in period (${fmtInt(all.length)})${unlisted(all.length, recs.length)}${recs.length > shown.length ? ` — latest ${fmtInt(shown.length)}` : ''}`,
       columns: DRILL_COLS,
       rows: listRows(shown)
     };
   }
   function drillMovers(m, ctx) {
     const by = new Map();
+    let counted = 0;
     for (const x of inScope(m, ctx, { types: INTERNAL })) {
       if (!x.perm) continue;
-      if (!by.has(x.r.employee_id)) by.set(x.r.employee_id, []);
+      if (!by.has(x.r.employee_id)) { by.set(x.r.employee_id, []); counted++; }
       by.get(x.r.employee_id).push(x);
     }
-    const list = [...by.values()].map((xs) => xs.sort(latestFirst)).sort((a, b) => latestFirst(a[0], b[0]));
+    const list = [...by.values()].filter((xs) => rowScoped(ctx, xs[0])).map((xs) => xs.sort(latestFirst)).sort((a, b) => latestFirst(a[0], b[0]));
     const shown = list.slice(0, DRILL_CAP);
     return {
-      title: `Permanent employees with an internal move in period (${fmtInt(list.length)})${list.length > shown.length ? ` — latest ${fmtInt(shown.length)}` : ''}`,
+      title: `Permanent employees with an internal move in period (${fmtInt(counted)})${unlisted(counted, list.length)}${list.length > shown.length ? ` — latest ${fmtInt(shown.length)}` : ''}`,
       columns: ['Employee', 'Name', 'Moves in period', 'Types', 'Latest move'],
       rows: shown.map((xs) => [xs[0].r.employee_id, xs[0].e?.name || '', fmtInt(xs.length),
         [...new Set(xs.map((x) => SHORT[x.type] || x.type))].join(', '), fmtDMY(xs[0].day)])
@@ -259,8 +269,9 @@ const MoveKit = (() => {
 
   // Details table rows for the tab: latest `cap` movements in the period
   function detailRows(m, ctx, cap = 100) {
-    const recs = inScope(m, ctx).sort(latestFirst);
-    return { total: recs.length, columns: ['Employee ID', 'Name', 'Effective date', 'Movement type', 'Change', 'Asset', 'Function', 'Level'], rows: listRows(recs.slice(0, cap)) };
+    const all = inScope(m, ctx);
+    const recs = all.filter((x) => rowScoped(ctx, x)).sort(latestFirst);
+    return { total: recs.length, unlisted: all.length - recs.length, columns: ['Employee ID', 'Name', 'Effective date', 'Movement type', 'Change', 'Asset', 'Function', 'Level'], rows: listRows(recs.slice(0, cap)) };
   }
 
   // employees the lookup may resolve: in the persona's current scope (employee

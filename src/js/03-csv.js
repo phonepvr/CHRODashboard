@@ -168,11 +168,14 @@ const CSV = {
     };
   },
 
-  // rows of arrays -> CSV text (quoting only where needed)
+  // rows of arrays -> CSV text (quoting only where needed). A text cell a
+  // spreadsheet would run as a formula (leading = + - @ tab CR) gets a leading
+  // apostrophe; plain signed numbers pass unchanged.
   serialize(headerRow, rows) {
     const cell = (v) => {
       if (typeof v === 'number') return String(v);
-      const s = String(v ?? '');
+      let s = String(v ?? '');
+      if (/^[=+\-@\t\r]/.test(s) && !/^[-+]?(\d+\.?\d*|\.\d+)([eE][-+]?\d+)?$/.test(s)) s = "'" + s;
       return /[",\n\r]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
     };
     const lines = [headerRow.map(cell).join(',')];

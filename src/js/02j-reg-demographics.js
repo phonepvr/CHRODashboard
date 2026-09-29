@@ -461,14 +461,16 @@ const DemoKit = (() => {
     assetsInScope, levelRank, detailRows, hcDrill, DETAIL_COLS, DETAIL_PII,
     budgetMonth, bvaTree, bvaRows, bvaDrill, bvaTotals, bvaSeries, BVA_IN, variance, variancePct, BVA_COLS, bridgeDrill,
     dimItems, trendLine, columns, bvaHTML, wireBva, detailsHTML, wireDetails,
-    // distribution bars from [label, lo, hi) buckets (age / tenure on the permanent roll)
-    bucketBarItems(pop, buckets, valueOf) {
+    // distribution bars from [label, lo, hi) buckets (age / tenure on the permanent roll);
+    // `suppress` applies the small-cell rule, as dimItems does, to a personal attribute (age)
+    bucketBarItems(pop, buckets, valueOf, { suppress = false } = {}) {
       const total = pop.length || 1;
       return buckets.map(([label, min, max]) => {
         const n = pop.filter((e) => {
           const v = valueOf(e);
           return v != null && v >= min && v < max;
         }).length;
+        if (suppress && Access.suppressed(n)) return { label, value: null, sub: `<${CONFIG.minCell} (small cell)`, tip: `${label}: ${Access.cellText(n)}` };
         return { label, value: n, tip: `${label}: ${fmtInt(n)} (${fmtPct(n / total * 100, 1)})` };
       });
     }
@@ -536,7 +538,7 @@ defineMetric({
 
 defineMetric({
   key: 'demo_women_hc', label: 'Women headcount (D)', tab: 'overview', group: 'Employee demographics', access: 'core',
-  unit: '', decimals: 0, direction: null,
+  unit: '', decimals: 0, direction: null, suppress: true,
   formulaText: 'On-roll employees with Gender = Female at the as-of date (D)',
   inputs: [DemoKit.empInput('Gender')],
   compute: (m, ctx) => DemoKit.onRoll(m, ctx).filter((e) => e.gender === 'Female').length,
@@ -548,7 +550,7 @@ defineMetric({
       const bands = Compute.countBy(pop, (e) => e.mgmt_band, CONFIG.mgmtBands);
       return bands.map(({ key, n }) => {
         const d = pop.filter((e) => (e.mgmt_band ?? DemoKit.BLANK) === key && e.gender === 'Female').length;
-        return [a, CONFIG.mgmtBandLabels[key] || key, Access.cellText(d), fmtInt(n), n ? fmtPct(d / n * 100, 1) : '—'];
+        return [a, CONFIG.mgmtBandLabels[key] || key, Access.cellText(d), fmtInt(n), !n || Access.suppressed(d) || Access.suppressed(n - d) ? '—' : fmtPct(d / n * 100, 1)];
       });
     })
   })
@@ -564,6 +566,7 @@ defineMetric({
     const a = DemoKit.onRoll(m, ctx);
     return a.length ? a.filter((e) => e.gender === 'Female').length / a.length * 100 : null;
   },
+  suppressShare: (m, ctx) => femaleCells(DemoKit.onRoll(m, ctx)),
   quality: (m, ctx) => Compute.blankShareNote(m, ctx, 'employee_master', 'gender', 'Gender')
 });
 

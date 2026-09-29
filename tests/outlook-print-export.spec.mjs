@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
-import { openMock as loadMock } from './helpers.mjs';
+import { openMock as loadMock, loadMock as loadMockFromGate, loadFiles, FIX } from './helpers.mjs';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const ARTIFACT = 'file://' + join(root, 'dist', 'index.html');
@@ -123,5 +123,40 @@ test.describe('Phase 5 — outlook, print pack, exports', () => {
     await expect.poll(() => downloads.length).toBe(before + 1);
     const drill = fs.readFileSync(await downloads[downloads.length - 1].path(), 'utf8');
     expect(drill).toContain('Hazira');
+  });
+
+  test('period labels follow the selected window everywhere; the selector names trailing windows', async ({ page }) => {
+    await loadMock(page);
+    expect(await page.locator('#sel-period option').allInnerTexts()).toEqual(['Last 3 months', 'Last 6 months', 'Last 12 months']);
+    await page.selectOption('#sel-period', '12');
+    const want = "Jul '24 – Jun '25";
+    await expect(page.locator('#ft-asof')).toContainText(want);
+    await expect(page.locator('#ovd-sec-head')).toContainText(want);
+    await expect.poll(() => page.locator('#print-root .pp-cover').innerText(), { timeout: 10_000 }).toContain(want);
+    await expect(page.locator('#print-root .pp-unit').first()).toContainText(want);
+    await page.click('#btn-export');
+    const [d] = await Promise.all([page.waitForEvent('download'), page.click('[data-export-all]')]);
+    const fs = await import('node:fs');
+    const rows = fs.readFileSync(await d.path(), 'utf8').trim().split(/\r?\n/).slice(1);
+    expect(rows.length).toBeGreaterThan(50);
+    expect(rows.every((l) => l.includes(`,${want},`))).toBe(true);
+    expect(rows.some((l) => /FY-Q1|illustrative\)/.test(l))).toBe(false);
+    await page.keyboard.press('Escape');
+    await page.click('#tab-scorecard');
+    await expect(page.locator('.sc-cum-note')).toContainText(`${want} vs the prior 12 months`);
+  });
+
+  test('a pack built from loaded files never says it holds no real employee data', async ({ page }) => {
+    await page.goto(ARTIFACT);
+    await loadFiles(page, [FIX('employee_master.csv'), FIX('exits.csv'), FIX('targets.csv')]);
+    await page.keyboard.press('Escape');
+    await expect(page.locator('#ft-conf')).toContainText('contains personal data loaded from employee_master.csv');
+    await expect(page.locator('#ft-conf')).not.toContainText('no real employee data');
+    await expect.poll(() => page.locator('#print-root .pp-footer').count(), { timeout: 10_000 }).toBeGreaterThan(0);
+    const foot = await page.locator('#print-root .pp-footer').allInnerTexts();
+    expect(foot.every((t) => t.includes('contains personal data loaded from') && !t.includes('no real employee data'))).toBe(true);
+    await page.click('#btn-reset');
+    await loadMockFromGate(page);
+    await expect(page.locator('#ft-conf')).toContainText('no real employee data');
   });
 });

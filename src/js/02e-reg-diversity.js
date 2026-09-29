@@ -4,9 +4,13 @@ function femaleShare(pop) {
   if (!pop.length) return null;
   return pop.filter((e) => e.gender === 'Female').length / pop.length * 100;
 }
+// [female, base] — the cells a female share is suppressed on (Compute.metric)
+function femaleCells(pop) {
+  return [pop.filter((e) => e.gender === 'Female').length, pop.length];
+}
 function femaleCounts(pop) {
   const f = pop.filter((e) => e.gender === 'Female').length;
-  return `${fmtInt(f)} of ${fmtInt(pop.length)}`;
+  return `${Access.cellText(f)} of ${fmtInt(pop.length)}`;
 }
 
 const DIV_BANDS = [
@@ -21,6 +25,7 @@ for (const [key, label, pred] of DIV_BANDS) {
     formulaText: `Active permanent female employees in ${label}\n÷ active permanent employees in ${label} × 100`,
     inputs: [{ dataset: 'employee_master', columns: ['Employee ID', 'Gender', 'Grade Band'] }],
     compute: (m, ctx) => femaleShare(Compute.actives(m, ctx, 'Permanent').filter(pred)),
+    suppressShare: (m, ctx) => femaleCells(Compute.actives(m, ctx, 'Permanent').filter(pred)),
     quality: (m, ctx) => {
       const pop = Compute.actives(m, ctx, 'Permanent').filter(pred);
       return pop.length && pop.length < 25 ? `Small base: ${femaleCounts(pop)}` : null;
@@ -33,7 +38,8 @@ for (const [key, label, pred] of DIV_BANDS) {
         rows: CONFIG.assets.filter((a) => ctx.asset === 'Group' || a === ctx.asset).map((a) => {
           const p = pop.filter((e) => e.asset === a);
           const f = p.filter((e) => e.gender === 'Female').length;
-          return [a, fmtInt(f), fmtInt(p.length - f), p.length ? fmtPct(f / p.length * 100, 1) : '—'];
+          const small = Access.suppressed(f) || Access.suppressed(p.length - f);
+          return [a, Access.cellText(f), Access.cellText(p.length - f), !p.length || small ? '—' : fmtPct(f / p.length * 100, 1)];
         })
       };
     }
@@ -45,7 +51,8 @@ defineMetric({
   group: 'Gender in talent pools', unit: '%', direction: 'higher',
   formulaText: 'Female TTs ÷ all TTs × 100',
   inputs: [{ dataset: 'employee_master', columns: ['Employee ID', 'Gender', 'TT Flag'] }],
-  compute: (m, ctx) => femaleShare(Compute.actives(m, ctx, 'Permanent').filter((e) => e.tt_flag))
+  compute: (m, ctx) => femaleShare(Compute.actives(m, ctx, 'Permanent').filter((e) => e.tt_flag)),
+  suppressShare: (m, ctx) => femaleCells(Compute.actives(m, ctx, 'Permanent').filter((e) => e.tt_flag))
 });
 
 defineMetric({
@@ -53,7 +60,8 @@ defineMetric({
   group: 'Gender in talent pools', unit: '%', direction: 'higher', scorecard: 'Talent Acquisition',
   formulaText: 'Female trainees ÷ all trainees × 100 — the pipeline shifts the future mix',
   inputs: [{ dataset: 'employee_master', columns: ['Employee ID', 'Gender', 'Employee Class'] }],
-  compute: (m, ctx) => femaleShare(Compute.actives(m, ctx, 'Trainee'))
+  compute: (m, ctx) => femaleShare(Compute.actives(m, ctx, 'Trainee')),
+  suppressShare: (m, ctx) => femaleCells(Compute.actives(m, ctx, 'Trainee'))
 });
 
 defineMetric({

@@ -284,11 +284,11 @@ TabRenderers.movement = (() => {
     const body = needData(DATA, () => {
       if (mode === 'agg') return `<div class="chart-empty chart-restricted" id="mv-details-withheld">${Access.LOCK_SVG} Row-level detail withheld — movement data is aggregate-only for ${esc(Access.label())}.</div>`;
       const d = K.detailRows(m, ctx);
-      if (!d.total) return '<div class="chart-empty">No movements in the selected period for this scope.</div>';
+      if (!d.total) return `<div class="chart-empty">No movements in the selected period for this scope${d.unlisted ? ` — ${fmtInt(d.unlisted)} counted for people now outside this persona’s scope are not listed` : ''}.</div>`;
       const t = Access.maskTable(d.columns, d.rows);
       if (!t) return `<div class="chart-empty chart-restricted" id="mv-details-withheld">${Access.LOCK_SVG} This table lists individual people. ${esc(Access.label())} sees aggregates only (identifiers: none), so the rows are not shown.</div>`;
       return `<div class="mv-details" id="mv-details">${UI.tableHTML(t.columns, t.rows)}</div>
-        <div class="chart-note">Latest ${fmtInt(d.rows.length)} of ${fmtInt(d.total)} movements in the period${t.columns !== d.columns ? ' · identifiers pseudonymised, names removed' : ''}. Click a volume tile for the full list and CSV.</div>`;
+        <div class="chart-note">Latest ${fmtInt(d.rows.length)} of ${fmtInt(d.total)} movements in the period${d.unlisted ? ` · ${fmtInt(d.unlisted)} more counted for people now outside this persona’s scope, not listed` : ''}${t.columns !== d.columns ? ' · identifiers pseudonymised, names removed' : ''}. Click a volume tile for the full list and CSV.</div>`;
     });
     return Charts.card({ title: 'Movements in the period', sub: 'latest first · “Change” lists every attribute that changed · Asset / Function / Level = state after the move', infoKey: 'mv_total', body });
   }

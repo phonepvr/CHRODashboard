@@ -50,7 +50,7 @@ TabRenderers.scorecard = (panel) => {
       <div>
         <span class="sc-cum-label">${scoped ? 'Persona-scoped score' : 'Cumulative CHRO score'}</span>
         <span class="sc-cum-value ${Scorecard.scoreClass(sc.cumulative)}">${sc.cumulative == null ? '—' : fmtNum(sc.cumulative, 1)}</span>
-        <span class="sc-cum-note">mean of the six function totals · ${esc(CONFIG.periodLabel)} vs prior period${scoped
+        <span class="sc-cum-note">mean of the six function totals · ${esc(periodText(Compute.ctxNow()))} vs the prior ${Compute.ctxNow().periodMonths} months${scoped
           ? ` · ${esc(Access.label())}: ${allRows.length - withheld} of ${allRows.length} metrics visible — totals are means of visible metrics only, not comparable with the CHRO cumulative` : ''}</span>
       </div>
       <div class="sc-legend">

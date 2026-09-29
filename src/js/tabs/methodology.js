@@ -72,7 +72,8 @@ TabRenderers.methodology = (panel) => {
         <li><strong>Scoring model</strong> — higher-is-better: <em>Score = Actual ÷ Target × 100</em>;
           lower-is-better: <em>Score = (2 × Target − Actual) ÷ Target × 100</em>. Function total = mean of scored
           metrics; cumulative score = mean of function totals; “Target not set” is excluded, never assumed.</li>
-        <li><strong>Periods</strong> — the period selector is illustrative (${esc(CONFIG.periodLabel)}); the as-of date
+        <li><strong>Periods</strong> — the period selector picks the trailing 3, 6 or 12 months to the as-of month
+          (currently ${esc(periodText(Compute.ctxNow()))}); every period label on screen, in exports and in print is that window. The as-of date
           (${esc(CONFIG.asOf)}), the fiscal-year start month (${CONFIG.fyStartMonth}) and retirement age (${CONFIG.retirementAge}) are single
           configurable constants. Snapshot tabs (positions, requisition book, managers) are as-of; YTD tiles use the fiscal year.</li>
         <li><strong>Productivity, Cost &amp; Safety</strong> is a steel-specific block added for AM/NS —

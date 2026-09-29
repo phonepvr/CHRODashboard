@@ -8,7 +8,7 @@ const Outlook = (() => {
   // Persona choke point for projections: a restricted panel keeps its title
   // but drops body, method, assumptions and note (they quote computed values).
   function panel({ title, method, assumptions, horizon, body, note = '', access }) {
-    if (Access.cardLevel(access, null) === 'hidden') {
+    if (Access.cardLevel(access, null) === 'hidden' || !Access.sectionAllowed('outlook', Access.classOf(access))) {
       return `<div class="card ol-panel is-restricted" data-access="${esc(Access.classOf(access) || 'unclassified')}">
         <div class="card-title">${esc(title)} <span class="proj-chip">Projected</span></div>
         <div class="card-sub">${esc(horizon)}</div>

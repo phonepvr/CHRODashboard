@@ -160,13 +160,21 @@ const App = {
     return '';
   }
 
+  // a pack or footer built from loaded files never claims to hold no real data
+  function confidentialText() {
+    return App.state.mode === 'byof'
+      ? `Confidential — contains personal data loaded from ${App.state.loadedFileNames.join(', ') || 'your files'}; handle per your data policy.`
+      : 'Confidential — illustrative mockup, contains no real employee data.';
+  }
+
   function refreshChrome() {
     const chip = document.getElementById('data-chip');
     const ftChip = document.getElementById('ft-chip');
     const cls = App.state.mode === 'mock' ? 'chip chip-mock' : 'chip chip-live';
     chip.textContent = chipText(); chip.className = cls;
     ftChip.textContent = chipText(); ftChip.className = cls;
-    document.getElementById('ft-asof').textContent = `As of ${CONFIG.asOf} · ${CONFIG.periodLabel}`;
+    document.getElementById('ft-asof').textContent = `As of ${CONFIG.asOf} · ${periodText(Compute.ctxNow())}`;
+    document.getElementById('ft-conf').textContent = confidentialText();
     const seg = 'Business: ' + Compute.ctxNow().segment;
     document.getElementById('scope-chip').textContent = seg;
     document.getElementById('ft-scope').textContent = seg;
@@ -363,13 +371,13 @@ const App = {
     selSeg.innerHTML = ['All', ...CONFIG.segments].map((v) => `<option value="${esc(v)}">${esc(v)}</option>`).join('');
     const selPeriod = document.getElementById('sel-period');
     selPeriod.innerHTML = [
-      ['3', 'FY-Q1 (3 mo)'], ['6', 'FY-H1 (6 mo)'], ['12', 'Full year (12 mo)']
+      ['3', 'Last 3 months'], ['6', 'Last 6 months'], ['12', 'Last 12 months']
     ].map(([v, l]) => `<option value="${v}">${l}</option>`).join('');
 
     selAsset.addEventListener('change', () => { App.state.filters.asset = selAsset.value; UI.invalidateTabs(); refreshChrome(); });
     selBand.addEventListener('change', () => { App.state.filters.band = selBand.value; UI.invalidateTabs(); });
     selSeg.addEventListener('change', () => { App.state.filters.segment = selSeg.value; UI.invalidateTabs(); refreshChrome(); });
-    selPeriod.addEventListener('change', () => { App.state.filters.periodMonths = +selPeriod.value; UI.invalidateTabs(); });
+    selPeriod.addEventListener('change', () => { App.state.filters.periodMonths = +selPeriod.value; UI.invalidateTabs(); refreshChrome(); });
 
     // Search filters the rendered DOM of the active tab only: hidden tabs are
     // never rendered and restricted tiles/cards carry no value text. Any future
@@ -562,5 +570,6 @@ const App = {
   App.importFieldMapFile = importFieldMapFile;
   App.resetToGate = resetToGate;
   App.refreshChrome = refreshChrome;
+  App.confidentialText = confidentialText;
   App.setPersona = setPersona;
 })();

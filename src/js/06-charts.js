@@ -186,8 +186,9 @@ const Charts = (() => {
     return `<svg viewBox="0 0 ${w} ${height}" role="img" preserveAspectRatio="xMidYMid meet">${rows}</svg>`;
   }
 
-  /* ---------- donut (two-to-four segments, labelled, never colour-alone) ---------- */
-  function donut({ items, centerLabel = '', h = 190 }) {
+  /* ---------- donut (two-to-four segments, labelled, never colour-alone) ----------
+     shares: false drops the percentages (a withheld segment would make them 100%) */
+  function donut({ items, centerLabel = '', h = 190, shares = true }) {
     const w = 640, cx = 160, cy = h / 2, R = Math.min(h / 2 - 14, 74), r = R - 22;
     const total = items.reduce((s, i) => s + (i.value || 0), 0);
     if (!total) return `<div class="chart-empty">No data for this chart.</div>`;
@@ -205,12 +206,12 @@ const Charts = (() => {
         : `M ${p(a0, R)} A ${R} ${R} 0 ${large} 1 ${p(a1, R)} L ${p(a1, r)} A ${r} ${r} 0 ${large} 0 ${p(a0, r)} Z`;
       a0 = a1;
       return `<path d="${d}" fill-rule="evenodd" fill="${cols[i % cols.length]}" stroke="var(--white)" stroke-width="2"
-        data-tip="${esc(`${it.label}: ${fmtInt(it.value)} (${fmtPct(frac * 100, 1)})`)}"/>`;
+        data-tip="${esc(`${it.label}: ${fmtInt(it.value)}${shares ? ` (${fmtPct(frac * 100, 1)})` : ''}`)}"/>`;
     }).join('');
     const legend = items.map((it, i) => `
       <g transform="translate(300, ${cy - items.length * 11 + i * 22})">
         <rect width="11" height="11" y="-9" fill="${cols[i % cols.length]}"/>
-        <text x="17" class="bar-label">${esc(it.label)} — ${fmtInt(it.value)} (${fmtPct((it.value || 0) / total * 100, 1)})</text>
+        <text x="17" class="bar-label">${esc(it.label)} — ${fmtInt(it.value)}${shares ? ` (${fmtPct((it.value || 0) / total * 100, 1)})` : ''}</text>
       </g>`).join('');
     return `<svg viewBox="0 0 ${w} ${h}" role="img" preserveAspectRatio="xMidYMid meet">
       ${segs}

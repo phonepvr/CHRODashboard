@@ -250,11 +250,13 @@ const UI = (() => {
     // 'agg' = the value, but no drill and no row-level detail
     const drillable = Access.canDrill(entry);
     const agg = res.level === 'agg';
-    const value = res.suppressed ? `&lt;${CONFIG.minCell}` : fmtMetric(entry, res.value);
+    // a suppressed share has no "<5" reading: the percentage is withheld outright
+    const share = res.suppressed && entry.unit === '%';
+    const value = share ? `Withheld — a cell below ${CONFIG.minCell}` : res.suppressed ? `&lt;${CONFIG.minCell}` : fmtMetric(entry, res.value);
     return `<div class="tile ${res.quality ? 'is-alert-quality' : ''}" data-key="${entry.key}" ${drillable ? `data-drill="${entry.key}" tabindex="0" role="button" aria-label="${esc(entry.label)} — open detail"` : ''}>
       <span class="tile-label">${esc(entry.label)}${entry.source ? ` <span class="tile-src">[${esc(entry.source)}]</span>` : ''}</span>
       ${iBtn}
-      <span class="tile-value">${value}</span>
+      <span class="tile-value${share ? ' tile-lock' : ''}">${value}</span>
       ${sparkHtml}
       <span class="tile-meta">${targetMeta(entry, res)}${agg ? '<span class="tile-badge">Aggregate only</span>' : ''}${res.suppressed ? '<span class="tile-badge">Small cell</span>' : ''}</span>
       ${res.quality ? `<span class="tile-quality">${esc(res.quality)}</span>` : ''}

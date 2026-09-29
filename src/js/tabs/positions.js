@@ -187,7 +187,7 @@ TabRenderers.positions = (panel) => {
     if (q) list = list.filter((r) => [r.position_id, r.position_title, r.asset, r.function_plant, PosKit.fnOf(m, r), r.level]
       .some((v) => v != null && String(v).toLowerCase().includes(q)));
     const sorted = list.slice().sort(PosKit.urgency(ctx));
-    const cols = withInc ? PosKit.COLS_INC : PosKit.COLS;
+    const cols = PosKit.colsFor(withInc);
     const t = Access.maskTable(cols, sorted.map((r) => PosKit.rowOf(m, ctx, r, withInc)));
     if (!t) {
       lastTable = null;

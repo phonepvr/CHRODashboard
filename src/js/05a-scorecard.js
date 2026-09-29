@@ -23,11 +23,14 @@ const Scorecard = (() => {
 
   // A persona-restricted row stays in the table as "Restricted" and is left out
   // of every mean, so totals are over visible metrics only.
+  // A function outside the persona's scorecard sections restricts every row.
   function rowsFor(fn) {
+    const inSection = Access.sectionAllowed('scorecard', fn);
     return REGISTRY.filter((e) => e.scorecard === fn).map((e) => {
       const res = Compute.metric(e.key);
-      if (res.restricted) {
-        return { entry: e, prior: null, current: null, target: null, direction: e.direction || 'higher', score: null, available: false, restricted: res.restricted };
+      const restricted = res.restricted || (inSection ? null : 'section');
+      if (restricted) {
+        return { entry: e, prior: null, current: null, target: null, direction: e.direction || 'higher', score: null, available: false, restricted };
       }
       const prior = Compute.priorValue(e.key);
       const target = res.target ? res.target.value : null;
@@ -58,10 +61,11 @@ const Scorecard = (() => {
   function scoreInfoHTML(key) {
     const e = REG_BY_KEY.get(key);
     const res = Compute.metric(key);
-    if (res.restricted) {
+    const restricted = res.restricted || (Access.sectionAllowed('scorecard', e.scorecard) ? null : 'section');
+    if (restricted) {
       return `<h3>Score — ${esc(e.label)}</h3>
         <div class="po-row"><span class="po-k">Access</span>${esc(Access.describe(e))}</div>
-        <div class="po-row">Score withheld — ${esc(Access.restrictedReason(res))}; excluded from the function total.</div>`;
+        <div class="po-row">Score withheld — ${esc(Access.restrictedReason({ ...res, restricted }))}; excluded from the function total.</div>`;
     }
     const target = res.target ? res.target.value : null;
     const direction = (res.target && res.target.direction) || e.direction || 'higher';

@@ -21,20 +21,28 @@ const AccessMatrix = (() => {
     </table></div>`;
   }
 
+  // a tab a persona sees only in part (PERSONAS[].sections)
+  const SECTION_WORDS = { scorecard: 'scorecard functions', outlook: 'outlook panels of class' };
+  const sectionNote = (p, tabId) => (p.sections?.[tabId] && Access.tabVisibleFor(p, tabId)
+    ? `only the ${SECTION_WORDS[tabId] || 'sections'}: ${p.sections[tabId].join(', ')}` : '');
+  const GRAIN_NOTE = 'asset-level source — not available at line-function scope';
+
+  // Metric Level is the level every surface serves, grain rule included
   function csv() {
     const out = [];
     for (const p of PERSONAS) {
       const base = [p.id, p.label, Access.scopeLabel(p), p.pii];
-      for (const t of TABS) out.push(['tab', ...base, t.id, t.label, Access.tabVisibleFor(p, t.id) ? 'Y' : 'N', '', '', '', '', '']);
-      for (const c of ACCESS_CLASS_IDS) out.push(['class', ...base, '', '', '', c, Access.levelForClass(p, c), '', '', '']);
+      for (const t of TABS) out.push(['tab', ...base, t.id, t.label, Access.tabVisibleFor(p, t.id) ? 'Y' : 'N', '', '', '', '', '', sectionNote(p, t.id)]);
+      for (const c of ACCESS_CLASS_IDS) out.push(['class', ...base, '', '', '', c, Access.levelForClass(p, c), '', '', '', '']);
       for (const e of REGISTRY) {
         const c = Access.classOf(e);
+        const grain = Access.levelFor(p, e) !== 'hidden' && Access.grainBlocked(p, e);
         out.push(['metric', ...base, e.tab, tabLabel(e.tab), Access.tabVisibleFor(p, e.tab) ? 'Y' : 'N',
-          c || 'unclassified', Access.levelForClass(p, c), e.key, e.label, Access.levelFor(p, e)]);
+          c || 'unclassified', Access.levelForClass(p, c), e.key, e.label, Access.effectiveLevelFor(p, e), grain ? GRAIN_NOTE : '']);
       }
     }
     return CSV.serialize(['Record', 'Persona ID', 'Persona', 'Data Scope', 'PII', 'Tab ID', 'Tab', 'Tab Visible',
-      'Access Class', 'Class Level', 'Metric Key', 'Metric', 'Metric Level'], out);
+      'Access Class', 'Class Level', 'Metric Key', 'Metric', 'Metric Level', 'Note'], out);
   }
 
   function download() { downloadBlob('access_matrix.csv', csv()); }
@@ -77,9 +85,10 @@ const AccessMatrix = (() => {
     const personaRows = PERSONAS.map((p) => {
       const n = Access.counts(p);
       const tabs = TABS.filter((t) => Access.tabVisibleFor(p, t.id)).length;
+      const parts = TABS.map((t) => sectionNote(p, t.id) && `${t.label}: ${sectionNote(p, t.id)}`).filter(Boolean);
       return [
         { html: `<strong>${esc(p.label)}</strong>${p.id === cur.id ? ' <span class="lvl lvl-agg">current</span>' : ''}<div class="am-sub">${esc(p.id)}</div>` },
-        p.who, Access.scopeLabel(p), Access.PII_LABEL[p.pii], `${tabs} of ${TABS.length}`,
+        p.who, Access.scopeLabel(p), Access.PII_LABEL[p.pii], { html: `${tabs} of ${TABS.length}${parts.length ? `<div class="am-sub">${esc(parts.join(' · '))}</div>` : ''}` },
         fmtInt(n.full), fmtInt(n.agg), fmtInt(n.hidden),
         { html: `<button class="btn btn-outline am-preview" data-persona="${esc(p.id)}">Preview as</button>` }
       ];
@@ -87,7 +96,7 @@ const AccessMatrix = (() => {
 
     const tabRows = TABS.map((t) => ({
       left: [esc(t.group), esc(t.label)],
-      cells: (p) => tick(Access.tabVisibleFor(p, t.id))
+      cells: (p) => tick(Access.tabVisibleFor(p, t.id)) + (sectionNote(p, t.id) ? `<div class="am-sub">${esc(sectionNote(p, t.id))}</div>` : '')
     }));
 
     const classRows = ACCESS_CLASS_IDS.map((id) => {
@@ -107,7 +116,7 @@ const AccessMatrix = (() => {
         ${personaTable(['Metric', 'Registry key', 'Class', 'Drill'], es.map((e) => ({
           left: [esc(e.label), `<code>${esc(e.key)}</code>`, esc(classLabel(Access.classOf(e))) + (e.access ? ' <span class="am-sub">(override)</span>' : ''),
             e.drill ? 'yes' : '—'],
-          cells: (p) => pill(Access.levelFor(p, e))
+          cells: (p) => pill(Access.effectiveLevelFor(p, e)) + (Access.levelFor(p, e) !== 'hidden' && Access.grainBlocked(p, e) ? `<div class="am-sub">${esc(GRAIN_NOTE)}</div>` : '')
         })))}
       </details>`).join('');
 

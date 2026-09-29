@@ -64,6 +64,8 @@ const ALWAYS_TABS = new Set(['fieldmap', 'methodology']);
 // tabs:  '*' (every tab, minus hideTabs) or a list of tab ids (+ ALWAYS_TABS)
 // levels: per access class; '*' applies to every class incl. unclassified
 // pii:   'identified' | 'masked' | 'none'
+// sections: optional narrowing inside a visible tab — scorecard: functions shown,
+//        outlook: access classes of the panels shown (D8 "Scorecard (financial), Outlook cost")
 // short: label for chips, footers and matrix column heads
 const PERSONAS = [
   {
@@ -101,6 +103,7 @@ const PERSONAS = [
     id: 'coe_cnb', label: 'C&B / HR Finance', short: 'C&B / HR Finance', scope: 'all',
     tabs: ['overview', 'positions', 'scorecard', 'outlook'],
     levels: { cost: 'full', org: 'full', core: 'agg', perf: 'agg', hiring: 'agg', learning: 'agg', attendance: 'agg', ops: 'agg', talent: 'hidden', wellbeing: 'hidden' },
+    sections: { scorecard: ['Financial Indicators'], outlook: ['cost'] },
     pii: 'none',
     who: 'Head of Compensation & Benefits, HR cost and manpower budgeting.'
   },
@@ -168,6 +171,21 @@ const Access = (() => {
     if (!e) return 'hidden';
     return levelForClass(persona, classOf(e));
   }
+
+  // the level surfaces actually serve: an asset-grain source (no Function
+  // attribute) cannot be narrowed to a line function, so it is Restricted there
+  function grainBlocked(persona, entry) {
+    const e = entryOf(entry);
+    return !!e && scopeHas(personaOf(persona), 'function') && e.inputs.some((i) => NO_FUNCTION_DATASETS.has(i.dataset));
+  }
+  const effectiveLevelFor = (persona, entry) => (grainBlocked(persona, entry) ? 'hidden' : levelFor(persona, entry));
+
+  // a persona's narrowing inside a visible tab (scorecard functions, outlook classes)
+  function sectionAllowedFor(persona, area, id) {
+    const list = personaOf(persona).sections?.[area];
+    return !list || list.includes(id);
+  }
+  const sectionAllowed = (area, id) => sectionAllowedFor(current(), area, id);
 
   const level = (entry) => levelFor(current(), entry);
   const canSee = (entry) => level(entry) !== 'hidden';
@@ -263,7 +281,7 @@ const Access = (() => {
 
   function counts(persona) {
     const out = { full: 0, agg: 0, hidden: 0 };
-    for (const e of REGISTRY) out[levelFor(persona, e)]++;
+    for (const e of REGISTRY) out[effectiveLevelFor(persona, e)]++;
     return out;
   }
 
@@ -280,9 +298,20 @@ const Access = (() => {
     return h >>> 0;
   }
 
+  // six hex digits collide within a few thousand IDs: the session maps keep
+  // each token unique (a clash re-hashes with a counter), memory only
+  const tokenById = new Map(), idByToken = new Map();
   function pseudonym(id, prefix = 'EMP') {
     if (id == null || id === '') return id;
-    return prefix + '-' + fmix32(hash32(SALT + '|' + id)).toString(16).toUpperCase().padStart(8, '0').slice(0, 6);
+    const key = prefix + '|' + id;
+    let t = tokenById.get(key);
+    if (t) return t;
+    for (let i = 0; !t || idByToken.has(t); i++) {
+      t = prefix + '-' + fmix32(hash32(SALT + '|' + id + (i ? '|' + i : ''))).toString(16).toUpperCase().padStart(8, '0').slice(0, 6);
+    }
+    tokenById.set(key, t);
+    idByToken.set(t, key);
+    return t;
   }
 
   // → {columns, rows} with identifiers handled for the persona, or null when the
@@ -328,6 +357,7 @@ const Access = (() => {
     const e = res.entry;
     if (res.restricted === 'scope') return 'Outside this persona’s data scope';
     if (res.restricted === 'grain') return 'Asset-level source — not available at line-function scope';
+    if (res.restricted === 'section') return 'Outside this persona’s sections of this tab';
     return (ACCESS_CLASSES[classOf(e)]?.label || 'Unclassified metric') + ' · not in this persona’s profile';
   }
 
@@ -350,7 +380,7 @@ const Access = (() => {
   }
 
   return {
-    classOf, levelFor, levelForClass, level, canSee, canDrill,
+    classOf, levelFor, levelForClass, effectiveLevelFor, grainBlocked, sectionAllowed, sectionAllowedFor, level, canSee, canDrill,
     tabVisibleFor, canSeeTab, landingTab,
     lockedAsset, lockedSegment, lockedFunction, ctxAllowed, canFocusAsset, chartScopes, printScopes,
     defaultFunction, functionsAt,

@@ -132,9 +132,9 @@ TabRenderers.joining = (() => {
     return Charts.card({
       title: 'Hires by gender', sub: 'YTD · count (share of hires)', infoKey: 'join_women_pct',
       body: need([JoinKit.EMP], () => (items.length
-        ? Charts.donut({ items, centerLabel: `${fmtInt(total)} hires` })
+        ? Charts.donut({ items, centerLabel: `${fmtInt(total)} hires`, shares: !dropped })
         : '<div class="chart-empty">No hires in the fiscal year to date for this scope.</div>')),
-      note: dropped ? `Segments with fewer than ${CONFIG.minCell} hires are not drawn for this persona; shares are of the drawn total.` : ''
+      note: dropped ? `Segments with fewer than ${CONFIG.minCell} hires are not drawn for this persona; shares are withheld.` : ''
     });
   }
 

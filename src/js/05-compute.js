@@ -579,8 +579,13 @@ const Compute = (() => {
       if (entry.spark && !overrides) { try { spark = entry.spark(m, ctx); } catch { spark = null; } }
     }
     const target = m.targets.get(key) || null;
-    // small-cell rule on special-category counts for persona-restricted views
-    const suppressed = !!entry.suppress && Access.suppressed(value);
+    // small-cell rule on special-category counts for persona-restricted views;
+    // a share (suppressShare → [numerator, base]) is withheld when its
+    // numerator or its complement is a small cell
+    let suppressed = !!entry.suppress && Access.suppressed(value);
+    if (!suppressed && entry.suppressShare && value != null && Access.suppressionOn()) {
+      try { const [n, base] = entry.suppressShare(m, ctx); suppressed = Access.suppressed(n) || Access.suppressed(base - n); } catch { /* noop */ }
+    }
     if (suppressed) { value = null; spark = null; }
     const res = { entry, value, available, quality, spark, target, ctx, level, suppressed };
     memo.set(mk, res);

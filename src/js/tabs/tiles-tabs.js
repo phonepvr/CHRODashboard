@@ -168,10 +168,13 @@ TabRenderers.diversity = (panel) => {
         items: CONFIG.gradeBands.map((b) => {
           const pop = Compute.actives(m, { ...ctx, band: b }, 'Permanent');
           const f = pop.filter((e) => e.gender === 'Female').length;
+          // a small female (or male) cell withholds the share, which would give it away
+          const sup = Access.suppressed(f) || Access.suppressed(pop.length - f);
           return {
-            label: CONFIG.bandLabels[b], value: pop.length ? f / pop.length * 100 : null,
-            sub: `${fmtInt(f)}/${fmtInt(pop.length)}`,
-            tip: `${CONFIG.bandLabels[b]}: ${fmtInt(f)} of ${fmtInt(pop.length)}`
+            label: CONFIG.bandLabels[b], value: pop.length && !sup ? f / pop.length * 100 : null,
+            sub: sup ? `withheld (a cell below ${CONFIG.minCell})` : `${fmtInt(f)}/${fmtInt(pop.length)}`,
+            tip: sup ? `${CONFIG.bandLabels[b]}: a gender cell below ${CONFIG.minCell} of ${fmtInt(pop.length)} — withheld for this persona`
+              : `${CONFIG.bandLabels[b]}: ${fmtInt(f)} of ${fmtInt(pop.length)}`
           };
         }), fmt: (v) => fmtPct(v, 1)
       }))

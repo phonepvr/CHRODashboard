@@ -47,11 +47,11 @@ const PrintPack = (() => {
       <span class="wordmark"><span class="wm-mark">AM/NS</span>
         <span class="wm-sub">ArcelorMittal Nippon Steel India</span></span>
       <span><strong>Smarter Steels. Brighter Futures.</strong></span>
-      <span>As of ${esc(CONFIG.asOf)} · ${esc(CONFIG.periodLabel)}</span>
+      <span>As of ${esc(CONFIG.asOf)} · ${esc(periodText(Compute.ctxNow()))}</span>
       <span class="chip ${App.state.mode === 'mock' ? 'chip-mock' : 'chip-live'}">${App.state.mode === 'mock' ? 'Illustrative data' : esc(App.state.loadedFileNames.join(', ') || 'Loaded data')}</span>
       <span class="chip">Business: ${esc(Compute.ctxNow().segment)}</span>
       <span class="chip">Persona: ${esc(Access.label())}</span>
-      <span>Confidential — illustrative mockup, no real employee data</span>
+      <span>${esc(App.confidentialText())}</span>
       <span class="pp-page">Page ${n} of ${m}</span>
     </div>`;
   }
@@ -63,7 +63,7 @@ const PrintPack = (() => {
           <span class="wm-sub">ArcelorMittal Nippon Steel India</span></div>
         <div class="cover-stroke"></div>
         <h1>HR Dashboard <span style="color:var(--red)">@AM/NS</span></h1>
-        <p class="cover-sub">${Access.isDefault() ? 'CHRO' : 'Persona'} print pack · ${esc(CONFIG.periodLabel)} · as of ${esc(CONFIG.asOf)}</p>
+        <p class="cover-sub">${Access.isDefault() ? 'CHRO' : 'Persona'} print pack · ${esc(periodText(Compute.ctxNow()))} · as of ${esc(CONFIG.asOf)}</p>
         <p class="cover-sub">${esc(Access.printScopes().join(' · '))} · Business: ${esc(Compute.ctxNow().segment)}</p>
         <p class="cover-sub">Prepared for persona: ${esc(Access.label())} (mockup persona view — not a security control)</p>
         <p class="cover-sub" style="margin-top:14pt">${App.state.mode === 'mock'
@@ -134,7 +134,7 @@ const PrintPack = (() => {
   function unitPage(asset) {
     return withScope(asset, () => `<section class="print-page pp-unit">
       <div class="section-head"><h2 style="font-size:14pt">${esc(asset)} — ${asset === 'Group' ? 'Group executive summary' : 'Asset HR head summary'}</h2>
-        <span class="sub">${esc(CONFIG.periodLabel)}${Compute.ctxNow().segment !== 'All' ? ' · Business: ' + esc(Compute.ctxNow().segment) : ''}${Compute.ctxNow().fn !== 'All' ? ' · Line function: ' + esc(Compute.ctxNow().fn) : ''}</span></div>
+        <span class="sub">${esc(periodText(Compute.ctxNow()))}${Compute.ctxNow().segment !== 'All' ? ' · Business: ' + esc(Compute.ctxNow().segment) : ''}${Compute.ctxNow().fn !== 'All' ? ' · Line function: ' + esc(Compute.ctxNow().fn) : ''}</span></div>
       ${summaryBlock(asset)}
       ${tilesBlock(ASSET_TILE_KEYS)}
       <div class="section-head pp-subhead"><h2>Workforce &amp; talent</h2><span class="sub">headcount, budget, positions, hiring, movement, absence, performance cycle</span></div>

@@ -141,12 +141,16 @@ const PosKit = (() => {
   const COLS = ['Position', 'Title', 'Asset', 'Function Plant', 'Level', 'Status', 'Budgeted', 'Critical', 'Vacant since', 'Days vacant', 'Requisition'];
   const COLS_INC = [...COLS, 'Incumbent'];
   const yn = (b) => (b == null ? '' : b ? 'Y' : 'N');
+  // the Critical flag is talent-pool data (ACCESS_CLASSES.talent: CP): no column
+  // for a persona that cannot see that class
+  const showCP = () => Access.levelForClass(Access.persona(), 'talent') !== 'hidden';
+  const colsFor = (withInc) => (withInc ? COLS_INC : COLS).filter((c) => c !== 'Critical' || showCP());
 
   function rowOf(m, ctx, r, withInc) {
     const age = isFilled(r) ? null : ageOf(r, ctx);
     const cells = [
       r.position_id ?? '(blank)', r.position_title || '', r.asset || '', r.function_plant || '', r.level || '',
-      r.position_status || '(blank)', yn(r.budgeted_flag), yn(r.cp_flag),
+      r.position_status || '(blank)', yn(r.budgeted_flag), ...(showCP() ? [yn(r.cp_flag)] : []),
       r.vacant_since == null || isFilled(r) ? '' : fmtDMY(r.vacant_since),
       age == null ? '' : { html: `<span class="pos-num${isVacant(r) && age > AGED ? ' pos-aged' : ''}">${fmtInt(age)}</span>` },
       reqText(m, r)
@@ -169,7 +173,7 @@ const PosKit = (() => {
     const more = sorted.length > CAP ? ` — first ${fmtInt(CAP)} shown` : '';
     return {
       title: `${title} (${fmtInt(list.length)})${more}`,
-      columns: withInc ? COLS_INC : COLS,
+      columns: colsFor(withInc),
       rows: sorted.slice(0, CAP).map((r) => rowOf(m, ctx, r, withInc))
     };
   }
@@ -274,7 +278,7 @@ const PosKit = (() => {
   const input = (...cols) => ({ dataset: 'positions', columns: ['Position ID', 'Asset', 'Position Status', ...cols] });
 
   return {
-    AGED, CAP, COLS, COLS_INC, ui, input,
+    AGED, CAP, COLS, COLS_INC, colsFor, ui, input,
     fnOf, match, rows, stats, tally, isFilled, isVacant, isHeld, isActive, isAged, ageOf,
     cover, noOpenReq, reqText, budget, budgetBy, vacancyBy, cutItem, ageing,
     rowOf, urgency, listDrill, assetsFor, drillByAssetStatus, drillByAssetFunction, drillBudget,
@@ -387,11 +391,11 @@ defineMetric({
 });
 
 defineMetric({
-  key: 'pb_cp_vacant', label: 'Critical positions vacant', tab: 'positions', access: 'org',
+  key: 'pb_cp_vacant', label: 'Critical positions vacant', tab: 'positions', access: 'talent',
   group: 'Vacancy risk', unit: '', decimals: 0, direction: 'lower',
   formulaText: 'Positions with Critical Position Flag = Y and Position Status = Vacant (count)',
   inputs: [PosKit.input('Critical Position Flag', 'Vacant Since')],
-  caveat: 'From the position master’s own flag — independent of succession.csv (the Talent tab’s critical-position metrics).',
+  caveat: 'From the position master’s own flag — independent of succession.csv (the Talent tab’s critical-position metrics). Critical positions are talent-pool data: personas without that class see neither this count nor the register’s Critical column.',
   compute: (m, ctx) => PosKit.rows(m, ctx).filter((r) => r.cp_flag && PosKit.isVacant(r)).length,
   drill: (m, ctx) => {
     const cp = PosKit.rows(m, ctx).filter((r) => r.cp_flag);

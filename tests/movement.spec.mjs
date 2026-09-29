@@ -339,5 +339,29 @@ test.describe('Phase 8 — R3 Movement tab', () => {
     await page.fill('#mv-emp-input', r.ownId);
     await page.press('#mv-emp-input', 'Enter');
     await expect(page.locator('#mv-timeline [data-mv-id]')).toHaveText(r.ownId);
+    // identified rows never undo the pooling: no peer name, and only people whose
+    // current record is at Hazira (the lookup's rule) in the table, drills and CSV
+    const rows = await page.evaluate(() => {
+      const m = Compute.build(), ctx = Compute.ctxNow();
+      const d = MoveKit.detailRows(m, ctx, 1e6);
+      const drill = REG_BY_KEY.get('mv_transfer_location').drill(m, ctx);
+      const movers = REG_BY_KEY.get('mv_internal_rate')?.drill?.(m, ctx);
+      const ids = [...d.rows, ...drill.rows, ...(movers ? movers.rows : [])].map((row) => row[0]);
+      return {
+        text: JSON.stringify([d.rows, drill.rows, drill.title]), unlisted: d.unlisted,
+        outside: ids.filter((id) => m.empById.get(id)?.asset !== 'Hazira').length, n: ids.length
+      };
+    });
+    expect(rows.n).toBeGreaterThan(0);
+    expect(rows.outside).toBe(0);
+    expect(rows.unlisted).toBeGreaterThan(0);
+    for (const peer of ['Paradeep', 'Vizag', 'Kirandul']) {
+      expect(rows.text, peer).not.toContain(peer);
+      expect(await page.locator('#mv-details').innerText(), peer).not.toContain(peer);
+    }
+    await page.locator('#panel-movement .tile[data-drill="mv_transfer_location"]').click();
+    const modal = await page.locator('.modal').innerText();
+    for (const peer of ['Paradeep', 'Vizag', 'Kirandul']) expect(modal, peer).not.toContain(peer);
+    expect(modal).toContain('Other assets');
   });
 });

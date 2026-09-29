@@ -3,7 +3,6 @@
 const CONFIG = {
   // The one place the illustrative as-of date lives (DD-MM-YYYY).
   asOf: '30-06-2025',
-  periodLabel: 'FY-Q1 (illustrative)',
   retirementAge: 58,          // configurable superannuation age
   historyMonths: 30,          // months of monthly history in mock data
   assets: ['Hazira', 'Paradeep', 'Vizag', 'Kirandul'],
@@ -107,6 +106,8 @@ function monthIdxToLabel(mi) {
   const names = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
   return `${names[m0]} '${String(y % 100).padStart(2, '0')}`;
 }
+// the selected window: the trailing ctx.periodMonths months to the as-of month
+function periodText(ctx) { return `${monthIdxToLabel(ctx.startMonth)} – ${monthIdxToLabel(ctx.endMonth)}`; }
 function monthIdxToMY(mi) {
   const y = Math.floor(mi / 12), m0 = mi % 12;
   return `${String(m0 + 1).padStart(2, '0')}-${y}`;

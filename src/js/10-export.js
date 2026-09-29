@@ -96,10 +96,10 @@ const Exports = (() => {
       const res = Compute.metric(k);
       const e = res.entry;
       const note = res.restricted ? Access.restrictedReason(res)
-        : res.suppressed ? `Suppressed: fewer than ${CONFIG.minCell} (small-cell rule)`
+        : res.suppressed ? (e.unit === '%' ? `Suppressed: a cell below ${CONFIG.minCell} (small-cell rule)` : `Suppressed: fewer than ${CONFIG.minCell} (small-cell rule)`)
         : res.quality || (res.available ? '' : 'inputs not loaded');
       return [
-        e.key, e.label, e.tab, e.group, ctx.asset, ctx.band, ctx.segment, CONFIG.periodLabel,
+        e.key, e.label, e.tab, e.group, ctx.asset, ctx.band, ctx.segment, periodText(ctx),
         res.available && res.value != null ? String(Math.round(res.value * 1000) / 1000) : '',
         res.target && res.target.value != null ? String(res.target.value) : '',
         e.direction || '', e.source || '', persona, ACCESS_LEVEL_LABEL[res.level || Access.level(e)], note

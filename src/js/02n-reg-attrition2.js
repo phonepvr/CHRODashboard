@@ -17,7 +17,7 @@ const AttrKit = (() => {
 
   const typePred = (type) => (type === 'Voluntary' || type === 'Involuntary' ? (x) => x.exit_type === type : null);
   const typeLabel = (type) => (type === 'All' ? 'All exit types' : type + ' exits');
-  const periodLabel = (ctx) => `${monthIdxToLabel(ctx.startMonth)} – ${monthIdxToLabel(ctx.endMonth)}`;
+  const periodLabel = periodText;
   const short = (s, n = 17) => { s = String(s ?? ''); return s.length > n ? s.slice(0, n - 1) + '…' : s; };
 
   /* ---------- fiscal YTD (D5 / D6) ---------- */

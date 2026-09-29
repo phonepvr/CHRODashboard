@@ -81,18 +81,28 @@ const MapStep = (() => {
     return '<span class="ms-chip ms-chip-manual" title="Chosen on this screen">manual</span>';
   }
 
+  // Sample values are raw rows, read before any persona scope or class rule
+  // applies: a scope-locked persona sees none, and a column shows samples only
+  // when the persona has row-level ('full') access to a metric it feeds.
+  function withheldReason(c, used) {
+    const scoped = Access.persona().scope !== 'all';
+    if (Mapping.PII_KEYS.has(c.key) && (scoped || Access.pii() !== 'identified')) return 'personal data';
+    if (scoped) return 'rows not yet scoped';
+    if (used.length && !used.some((k) => Access.level(k) === 'full')) return 'not in this persona’s profile';
+    return null;
+  }
+
   function rowHTML(f, i, c) {
     const v = f.cols.get(c.key);
     const mapped = v && v.header != null;
     const opts = '<option value="">— unmapped —</option>' + f.parsed.headers.map((h, hi) =>
       (h.trim() ? `<option value="${hi}"${mapped && v.idx === hi ? ' selected' : ''}>${esc(h)}</option>` : '')).join('');
     const pii = Mapping.PII_KEYS.has(c.key);
-    // rows are not yet scoped here, so a scope-locked persona sees no personal samples
-    const showPII = Access.pii() === 'identified' && Access.persona().scope === 'all';
-    const samples = !mapped ? '<span class="ms-muted">—</span>'
-      : pii && !showPII ? '<span class="ms-muted">withheld (personal data)</span>'
-      : samplesOf(f, v.idx).map((s) => `<span class="ms-sample">${esc(s.length > 28 ? s.slice(0, 27) + '…' : s)}</span>`).join('') || '<span class="ms-muted">(all blank)</span>';
     const used = Mapping.consumers(f.schemaId, c.name);
+    const why = mapped ? withheldReason(c, used) : null;
+    const samples = !mapped ? '<span class="ms-muted">—</span>'
+      : why ? `<span class="ms-muted">withheld (${esc(why)})</span>`
+      : samplesOf(f, v.idx).map((s) => `<span class="ms-sample">${esc(s.length > 28 ? s.slice(0, 27) + '…' : s)}</span>`).join('') || '<span class="ms-muted">(all blank)</span>';
     return `<tr class="${!mapped && c.required ? 'is-missing' : ''}" data-ms-key="${esc(c.key)}">
       <td><span class="ms-field">${esc(c.name)}</span><span class="ms-type" title="${esc(Exports.typeLabel(c))}">${esc(shortType(c))}</span></td>
       <td class="ms-req">${c.required ? '<span class="ms-chip ms-chip-req">Required</span>' : '<span class="ms-chip ms-chip-opt">Optional</span>'}${pii ? '<span class="ms-chip ms-chip-pii" title="Identifies or describes a person">PII</span>' : ''}</td>

@@ -239,9 +239,34 @@ test.describe('Phase 8 — Core-C: field mapping step, auto-match, field_map.csv
     for (const k of ['employee_id', 'name']) {
       await expect(page.locator(`[data-ms-file="0"] tr[data-ms-key="${k}"] .ms-samples`)).toHaveText('withheld (personal data)');
     }
-    await expect(page.locator('[data-ms-file="0"] tr[data-ms-key="asset"] .ms-samples .ms-sample').first()).toBeAttached();
+    // ... nor any other raw value: peer-asset rows would show through otherwise
+    await expect(page.locator('[data-ms-file="0"] tr[data-ms-key="asset"] .ms-samples')).toHaveText('withheld (rows not yet scoped)');
+    expect(await page.locator('#map-step .ms-sample').count()).toBe(0);
     await confirmMapping(page);
     await expect(page.locator('#app')).toBeVisible();
+  });
+
+  test('an unscoped persona sees no samples of columns that feed only restricted metrics', async ({ page }) => {
+    await page.goto(ARTIFACT);
+    await page.selectOption('#gate-persona', 'coe_ta');
+    await page.click('#gate-mock');
+    await expect(page.locator('#map-step')).toBeVisible();
+    const r = await page.evaluate(() => {
+      const out = {};
+      for (const card of document.querySelectorAll('#map-step details.ms-card')) {
+        const id = SCHEMA_IDS.find((s) => card.querySelector('.ms-tpl').textContent.startsWith('→ ' + s + '.csv '));
+        for (const tr of card.querySelectorAll('tr[data-ms-key]')) {
+          const col = SCHEMAS[id].columns.find((c) => c.key === tr.dataset.msKey);
+          const used = Mapping.consumers(id, col.name);
+          out[id + '.' + col.key] = { shown: !!tr.querySelector('.ms-sample'), hidden: used.length > 0 && used.every((k) => Access.level(k) !== 'full') };
+        }
+      }
+      return out;
+    });
+    // wellbeing and cost are hidden for TA COE: their values never reach the page
+    for (const k of ['wellbeing.distress', 'production_safety.employee_cost']) expect(r[k], k).toEqual({ shown: false, hidden: true });
+    for (const [k, v] of Object.entries(r)) if (v.hidden) expect(v.shown, k).toBe(false);
+    expect(Object.values(r).some((v) => v.shown)).toBe(true);
   });
 
   test('a manual pick on the canonical mock does not seed later real loads', async ({ page }) => {

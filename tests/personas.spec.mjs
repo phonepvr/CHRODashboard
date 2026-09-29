@@ -206,6 +206,20 @@ test.describe('Phase 8 — Core-B: grouped nav, segment filter, personas, access
     await expect(page.locator('.sc-cum-label')).toHaveText('Persona-scoped score');
     const tm = page.locator('.sc-table').filter({ hasText: 'TT stagnation' });
     await expect(tm.locator('.sc-total td').last()).toHaveText('—');
+    // D8: C&B sees the Scorecard's financial section and the Outlook's cost panel only
+    const sc = await page.evaluate(() => Scorecard.compute().functions.map((f) => ({
+      fn: f.fn, shown: f.rows.filter((r) => !r.restricted).length, n: f.rows.length })));
+    for (const f of sc) {
+      if (f.fn === 'Financial Indicators') expect(f.shown, f.fn).toBe(f.n);
+      else expect(f.shown, f.fn).toBe(0);
+    }
+    await expect(page.locator('tr.sc-restricted[data-key="attr_annualised"]')).toContainText('Restricted');
+    await page.click('#tab-outlook');
+    const panels = page.locator('#panel-outlook .ol-panel');
+    const open = page.locator('#panel-outlook .ol-panel:not(.is-restricted)');
+    expect(await panels.count()).toBeGreaterThan(1);
+    await expect(open).toHaveCount(1);
+    await expect(open).toContainText('Manpower cost outlook');
     // HRBP: ops hidden; an asset-grain source is not served at function scope
     await page.evaluate(() => App.setPersona('hrbp', { asset: 'Vizag' }));
     await expect(page.locator('#ctl-fn')).toBeVisible();
@@ -216,6 +230,65 @@ test.describe('Phase 8 — Core-B: grouped nav, segment filter, personas, access
     // the summary names the function its figures cover
     const fn = await page.evaluate(() => Access.lockedFunction());
     await expect(page.locator('.exec-band .exec-verdict').first()).toContainText(`Vizag · ${fn}:`);
+  });
+
+  test('small cells: gender counts, shares, the gender-by-band and age cuts are withheld below minCell', async ({ page }) => {
+    await loadMockAs(page);
+    // an HRBP binding whose on-roll women (or men) fall below minCell
+    const pick = await page.evaluate(() => {
+      for (const asset of CONFIG.assets) {
+        for (const fn of Access.functionsAt(asset)) {
+          App.setPersona('hrbp', { asset, fn });
+          const pop = DemoKit.onRoll(Compute.build(), Compute.ctxNow());
+          const f = pop.filter((e) => e.gender === 'Female').length;
+          if (f > 0 && f < CONFIG.minCell && pop.length >= 20) return { asset, fn, f, n: pop.length };
+        }
+      }
+      return null;
+    });
+    expect(pick).toBeTruthy();
+    const r = await page.evaluate(() => Object.fromEntries(['demo_women_hc', 'demo_women_pct', 'female_pct'].map((k) => {
+      const res = Compute.metric(k);
+      return [k, { value: res.value, suppressed: res.suppressed }];
+    })));
+    expect(r.demo_women_hc).toEqual({ value: null, suppressed: true });
+    expect(r.demo_women_pct).toEqual({ value: null, suppressed: true });
+    await page.click('#tab-overview');
+    await expect(page.locator('.tile[data-key="demo_women_hc"] .tile-value')).toHaveText('<5');
+    await expect(page.locator('.tile[data-key="demo_women_pct"] .tile-value')).toContainText('Withheld');
+    // the gender donut draws no share once a segment is withheld (it would read 100%)
+    const donut = page.locator('.card', { hasText: 'Gender' }).first();
+    await expect(donut).toContainText('shares withheld');
+    expect(await donut.locator('svg text', { hasText: '%' }).count()).toBe(0);
+    // the metrics CSV carries no raw value either
+    await page.click('#btn-export');
+    const all = await download(page, () => page.click('[data-export-all]'));
+    const line = all.text.split(/\r?\n/).find((l) => l.startsWith('demo_women_pct,'));
+    expect(line).toContain('Suppressed: a cell below 5');
+    expect(all.text.split(/\r?\n/).find((l) => l.startsWith('demo_women_hc,'))).toContain('Suppressed: fewer than 5');
+    await page.keyboard.press('Escape');
+    // Asset HR Head: female share by grade band and the age distribution suppress too
+    await page.evaluate(() => App.setPersona('asset_head', { asset: 'Kirandul' }));
+    const cuts = await page.evaluate(() => {
+      const m = Compute.build(), ctx = Compute.ctxNow();
+      const bands = CONFIG.gradeBands.map((b) => {
+        const pop = Compute.actives(m, { ...ctx, band: b }, 'Permanent');
+        const f = pop.filter((e) => e.gender === 'Female').length;
+        return { label: CONFIG.bandLabels[b], small: Access.suppressed(f) || Access.suppressed(pop.length - f) };
+      });
+      return { bands };
+    });
+    expect(cuts.bands.some((b) => b.small)).toBe(true);
+    await page.click('#tab-diversity');
+    const band = page.locator('#panel-diversity .card', { hasText: 'Female share by grade band' });
+    for (const b of cuts.bands.filter((x) => x.small)) {
+      await expect(band.locator('g', { hasText: b.label }).locator('.bar-value')).toContainText('withheld');
+    }
+    await page.click('#tab-overview');
+    const age = page.locator('.card', { hasText: 'Age distribution' });
+    const ageVals = await age.locator('.bar-value').allTextContents();
+    expect(ageVals.some((t) => t.includes('<5'))).toBe(true);
+    expect(ageVals.every((t) => !/^[1-4](\s|$)/.test(t.trim()))).toBe(true);
   });
 
   test('PII: masked personas get stable pseudonyms in drills and drill CSV; "none" withholds person rows', async ({ page }) => {
@@ -354,7 +427,7 @@ test.describe('Phase 8 — Core-B: grouped nav, segment filter, personas, access
     const csv = await download(page, () => page.click('[data-export-access]'));
     expect(csv.name).toBe('access_matrix.csv');
     const lines = csv.text.trim().split(/\r?\n/);
-    expect(lines[0]).toBe('Record,Persona ID,Persona,Data Scope,PII,Tab ID,Tab,Tab Visible,Access Class,Class Level,Metric Key,Metric,Metric Level');
+    expect(lines[0]).toBe('Record,Persona ID,Persona,Data Scope,PII,Tab ID,Tab,Tab Visible,Access Class,Class Level,Metric Key,Metric,Metric Level,Note');
     expect(lines.length).toBe(1 + counts.personas * (counts.tabs + counts.classes + counts.metrics));
     // the exported levels are exactly what the resolver returns
     const samples = await page.evaluate(() => [['coe_ta', 'tt_stagnation'], ['coe_cnb', 'cost_per_tonne'], ['hrbp', 'ltifr'], ['asset_head', 'lnd_cost_per_emp'], ['hrops', 'contract_hc']]
@@ -362,8 +435,14 @@ test.describe('Phase 8 — Core-B: grouped nav, segment filter, personas, access
     for (const [p, k, lvl] of samples) {
       const line = lines.find((l) => l.startsWith(`metric,${p},`) && l.includes(`,${k},`));
       expect(line, `${p} × ${k}`).toBeTruthy();
-      expect(line.endsWith(',' + lvl)).toBe(true);
+      expect(line.endsWith(',' + lvl + ',')).toBe(true);
     }
+    // the matrix states what the UI serves: an asset-grain source is Restricted for the
+    // function-scoped HRBP (the tile renders restricted), with the reason
+    const grain = lines.find((l) => l.startsWith('metric,hrbp,') && l.includes(',headcount_contract,'));
+    expect(grain).toContain(',hidden,asset-level source');
+    const cnbTabs = lines.filter((l) => l.startsWith('tab,coe_cnb,') && /,(scorecard|outlook),/.test(l));
+    expect(cnbTabs.every((l) => /,Y,.*only the/.test(l))).toBe(true);
     // "Preview as" switches persona from the matrix
     await panel.locator('[data-persona="coe_talent"]').click();
     await expect(page.locator('#btn-persona')).toContainText('Talent & L&D COE');

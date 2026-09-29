@@ -103,7 +103,8 @@ test.describe('Phase 8 — R8 Positions & Budget', () => {
     // every metric on the tab is classified 'org' and defined in the registry
     const reg = await page.evaluate(() => REGISTRY.filter((e) => e.tab === 'positions').map((e) => [e.key, Access.classOf(e)]));
     expect(reg.length).toBe(11);
-    for (const [key, cls] of reg) expect(cls, key).toBe('org');
+    // critical positions are talent-pool data (ACCESS_CLASSES.talent: CP); the rest is 'org'
+    for (const [key, cls] of reg) expect(cls, key).toBe(key === 'pb_cp_vacant' ? 'talent' : 'org');
     // the "i" reveals the exact formula
     await tile(page, 'pb_vacancy_pct').locator('.i-btn').click();
     await expect(page.locator('.popover')).toContainText('Vacant positions ÷ (Filled + Vacant positions) × 100');
@@ -230,6 +231,10 @@ test.describe('Phase 8 — R8 Positions & Budget', () => {
     const text = readFileSync(await d.path(), 'utf8');
     expect(text).toContain('EMP-');
     expect(text).not.toContain('AMNS-');
+    // critical positions are talent-pool data, hidden for TA COE: no tile value, no column
+    expect(text.split(/\r?\n/)[0]).not.toContain('Critical');
+    expect(await reg.locator('thead th').allInnerTexts()).not.toContain('CRITICAL');
+    await expect(page.locator('#panel-positions .tile[data-key="pb_cp_vacant"]')).toHaveClass(/is-restricted/);
 
     // C&B / HR Finance — PII none: incumbent lists withheld, position-only lists shown
     await page.evaluate(() => App.setPersona('coe_cnb'));

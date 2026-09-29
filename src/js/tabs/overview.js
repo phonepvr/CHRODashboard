@@ -27,7 +27,7 @@ TabRenderers.overview = (panel) => {
     <div id="ovd-sec-exec">${ExecSummary.bandHTML()}</div>
     <nav class="ovd-nav" aria-label="Overview sections"><span class="ovd-nav-k">Jump to</span>${SECTIONS.map(([id, t]) =>
       `<button type="button" data-ovd-jump="${id}">${esc(t)}</button>`).join('')}</nav>
-    ${head('ovd-sec-head', 'Headline', CONFIG.periodLabel + ' · as of ' + CONFIG.asOf)}
+    ${head('ovd-sec-head', 'Headline', periodText(ctx) + ' · as of ' + CONFIG.asOf)}
     <div class="tile-grid">${tiles('Workforce')}</div>
 
     ${head('ovd-sec-demog', 'Employee demographics', `on-roll = permanent + trainee (GET) at ${fmtDMY(ctx.asOfDay)} · contract workforce on Contract & Compliance · hover for counts and shares`)}
@@ -76,8 +76,8 @@ TabRenderers.overview = (panel) => {
     const counts = Compute.countBy(pop, (e) => e.gender, order);
     const shown = counts.filter((c) => !Access.suppressed(c.n));
     const hidden = counts.filter((c) => Access.suppressed(c.n));
-    return Charts.donut({ items: shown.map((c) => ({ label: c.key, value: c.n })), centerLabel: `${fmtInt(total)} on roll` }) +
-      (hidden.length ? `<div class="chart-note">${esc(hidden.map((c) => c.key).join(', '))}: &lt;${CONFIG.minCell} (small cell, not drawn)</div>` : '');
+    return Charts.donut({ items: shown.map((c) => ({ label: c.key, value: c.n })), centerLabel: `${fmtInt(total)} on roll`, shares: !hidden.length }) +
+      (hidden.length ? `<div class="chart-note">${esc(hidden.map((c) => c.key).join(', '))}: &lt;${CONFIG.minCell} (small cell, not drawn) · shares withheld</div>` : '');
   };
 
   const assetCard = () => {
@@ -168,7 +168,7 @@ TabRenderers.overview = (panel) => {
     Charts.card({
       title: 'Age distribution', infoKey: 'avg_age',
       body: need(() => Charts.barH({
-        items: DemoKit.bucketBarItems(perm.filter((e) => e.dob != null), AGE_BUCKETS, (e) => yearsBetween(e.dob, ctx.asOfDay)),
+        items: DemoKit.bucketBarItems(perm.filter((e) => e.dob != null), AGE_BUCKETS, (e) => yearsBetween(e.dob, ctx.asOfDay), { suppress: true }),
         fmt: (v) => fmtInt(v)
       })),
       note: `superannuation age ${CONFIG.retirementAge} — the ≥51 bars feed the Outlook glidepath`

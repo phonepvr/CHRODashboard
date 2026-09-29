@@ -289,7 +289,8 @@ defineMetric({
     const a = Compute.actives(m, ctx, null);
     if (!a.length) return null;
     return a.filter((e) => e.gender === 'Female').length / a.length * 100;
-  }
+  },
+  suppressShare: (m, ctx) => femaleCells(Compute.actives(m, ctx, null))
 });
 
 defineMetric({

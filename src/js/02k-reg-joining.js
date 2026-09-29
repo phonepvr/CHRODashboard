@@ -98,7 +98,7 @@ defineMetric({
 
 defineMetric({
   key: 'join_women_ytd', label: 'Women hires YTD', tab: 'joining', access: 'hiring',
-  group: 'New joiners', unit: '', decimals: 0, direction: null,
+  group: 'New joiners', unit: '', decimals: 0, direction: null, suppress: true,
   formulaText: 'Hires YTD (fiscal-year start → as-of) with Gender = Female — count',
   inputs: [{ dataset: 'employee_master', columns: [...JoinKit.BASE_COLS, 'Gender'] }],
   caveat: 'Read with the women share of hires — the count alone moves with hiring volume.',
@@ -116,7 +116,8 @@ defineMetric({
   compute: (m, ctx) => {
     const pop = JoinKit.ytd(m, ctx);
     return pop.length ? pop.filter((e) => e.gender === 'Female').length / pop.length * 100 : null;
-  }
+  },
+  suppressShare: (m, ctx) => femaleCells(JoinKit.ytd(m, ctx))
 });
 
 defineMetric({

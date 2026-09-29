@@ -181,7 +181,7 @@ defineMetric({
 
 defineMetric({
   key: 'mgr_women', label: 'Women line managers', tab: 'managers', access: 'org',
-  group: 'Scope of manager', unit: '', decimals: 0, direction: null,
+  group: 'Scope of manager', unit: '', decimals: 0, direction: null, suppress: true,
   formulaText: 'Line managers with Gender = Female — count',
   inputs: [{ dataset: 'employee_master', columns: ['Employee ID', 'Manager ID', 'Gender', 'Date of Joining', 'Employee Class'] }],
   compute: (m, ctx) => MgrKit.when(m, () => MgrKit.summary(MgrKit.managers(m, ctx)).women),
@@ -194,5 +194,6 @@ defineMetric({
   formulaText: 'Line managers with Gender = Female ÷ line managers × 100',
   inputs: [{ dataset: 'employee_master', columns: ['Employee ID', 'Manager ID', 'Gender', 'Date of Joining', 'Employee Class'] }],
   caveat: 'Compare with the female share of the workforce (Overview) — the gap is the managerial pipeline.',
-  compute: (m, ctx) => MgrKit.when(m, () => MgrKit.summary(MgrKit.managers(m, ctx)).womenPct)
+  compute: (m, ctx) => MgrKit.when(m, () => MgrKit.summary(MgrKit.managers(m, ctx)).womenPct),
+  suppressShare: (m, ctx) => { const s = MgrKit.summary(MgrKit.managers(m, ctx)); return [s.women, s.mgrs]; }
 });
