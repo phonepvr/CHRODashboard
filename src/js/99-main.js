@@ -325,6 +325,9 @@ const App = {
     refreshChrome();
     UI.invalidateTabs();
     if (typeof PrintPack !== 'undefined') PrintPack.markDirty();
+    // the mapping step's Confirm button is gone; the active tab takes focus
+    // (and is where the load report returns it)
+    if (document.activeElement === document.body) document.getElementById('tab-' + App.state.activeTab)?.focus();
   }
 
   function resetToGate() {

@@ -87,8 +87,10 @@ const MapStep = (() => {
     const opts = '<option value="">— unmapped —</option>' + f.parsed.headers.map((h, hi) =>
       (h.trim() ? `<option value="${hi}"${mapped && v.idx === hi ? ' selected' : ''}>${esc(h)}</option>` : '')).join('');
     const pii = Mapping.PII_KEYS.has(c.key);
+    // rows are not yet scoped here, so a scope-locked persona sees no personal samples
+    const showPII = Access.pii() === 'identified' && Access.persona().scope === 'all';
     const samples = !mapped ? '<span class="ms-muted">—</span>'
-      : pii && Access.pii() !== 'identified' ? '<span class="ms-muted">withheld (personal data)</span>'
+      : pii && !showPII ? '<span class="ms-muted">withheld (personal data)</span>'
       : samplesOf(f, v.idx).map((s) => `<span class="ms-sample">${esc(s.length > 28 ? s.slice(0, 27) + '…' : s)}</span>`).join('') || '<span class="ms-muted">(all blank)</span>';
     const used = Mapping.consumers(f.schemaId, c.name);
     return `<tr class="${!mapped && c.required ? 'is-missing' : ''}" data-ms-key="${esc(c.key)}">
@@ -225,17 +227,31 @@ const MapStep = (() => {
 
   /* ---------- events ---------- */
 
+  // A closed <select> fires change on every arrow key. Picks made while one
+  // control keeps focus apply to the file's state from before the first pick,
+  // so browsing the options never strips headers from other fields for good.
+  const ctlOf = (t) => (t.dataset?.msTemplate != null ? 't' + t.dataset.msTemplate
+    : t.dataset?.msCol != null ? 'c' + t.dataset.msFile + ':' + t.dataset.msCol : null);
+  function editBase(ctl, f) {
+    if (!st.edit || st.edit.ctl !== ctl) st.edit = { ctl, schemaId: f.schemaId, cols: new Map(f.cols) };
+    return st.edit;
+  }
+
   function wire() {
     if (wired) return;
     wired = true;
     const el = root();
+    el.addEventListener('focusin', (e) => {
+      if (st && st.edit && st.edit.ctl !== ctlOf(e.target)) st.edit = null;
+    });
     el.addEventListener('change', (e) => {
       if (!st) return;
       const tpl = e.target.closest('[data-ms-template]');
       if (tpl) {
-        const i = +tpl.dataset.msTemplate, f = st.files[i];
+        const i = +tpl.dataset.msTemplate, f = st.files[i], base = editBase(ctlOf(tpl), f);
         f.schemaId = tpl.value || null;
-        f.cols = f.schemaId ? Mapping.assign(f.schemaId, f.parsed.headers, undefined, seedMap()).cols : new Map();
+        f.cols = !f.schemaId ? new Map() : f.schemaId === base.schemaId ? new Map(base.cols)
+          : Mapping.assign(f.schemaId, f.parsed.headers, undefined, seedMap()).cols;
         f.open = true;
         rerenderCards(null, `[data-ms-template="${i}"]`);
         return;
@@ -243,6 +259,7 @@ const MapStep = (() => {
       const sel = e.target.closest('[data-ms-col]');
       if (sel) {
         const i = +sel.dataset.msFile, f = st.files[i], key = sel.dataset.msCol;
+        f.cols = new Map(editBase(ctlOf(sel), f).cols);
         Mapping.setManual(f.cols, f.parsed.headers, f.schemaId, key, sel.value === '' ? null : +sel.value);
         rerenderCards(i, `details[data-ms-file="${i}"] [data-ms-col="${key}"]`);
       }
@@ -296,7 +313,8 @@ const MapStep = (() => {
   function confirm() {
     if (!st || isBlocked()) return;
     const out = st.files.map((f) => ({ name: f.name, parsed: f.parsed, schemaId: f.schemaId, cols: f.cols }));
-    for (const f of out) if (f.schemaId) Mapping.remember(f.schemaId, f.cols);
+    // picks on the canonical mock never seed a real load (nor the reverse)
+    if (st.mode !== 'mock') for (const f of out) if (f.schemaId) Mapping.remember(f.schemaId, f.cols);
     const done = st.onConfirm;
     close();
     done(out);

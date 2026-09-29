@@ -97,6 +97,7 @@ test.describe('Phase 8 — Core-C: field mapping step, auto-match, field_map.csv
     await page.keyboard.press('Enter');
     await expect(page.locator('#app')).toBeVisible();
     await expect(page.locator('#tab-overview')).toHaveAttribute('aria-selected', 'true');
+    await expect(page.locator('#tab-overview')).toBeFocused();   // focus is not dropped to <body>
     await expect(page.locator('[data-key="headcount_close"] .tile-value')).toHaveText(/^[\d,]+$/);
     expect(await page.evaluate(() => [...App.state.datasets.values()].every((d) => d.mapping && Object.keys(d.mapping.cols).length))).toBe(true);
     const storage = await page.evaluate(() => ({ l: localStorage.length, s: sessionStorage.length, c: document.cookie }));
@@ -188,6 +189,69 @@ test.describe('Phase 8 — Core-C: field mapping step, auto-match, field_map.csv
     await page.click('[data-ms-back]');
     await expect(page.locator('#app')).toBeVisible();
     expect(await page.evaluate(() => [...App.state.datasets.keys()])).toEqual(['employee_master']);
+  });
+
+  test('keyboard: arrowing through a field\'s options never strips other fields; moving on commits the pick', async ({ page }) => {
+    await page.goto(ARTIFACT);
+    await page.setInputFiles('#file-input', write('employee_master.csv', [
+      'Employee ID,Name,Asset,Grade Band,Grade,Function,Gender,Birth Dt,Date of Joining,Employee Class',
+      'K-1,A,Hazira,Below AM,S1,Operations,Male,01-01-1966,01-01-2015,Permanent',
+      'K-2,B,Hazira,Below AM,S1,Operations,Female,01-01-1991,01-01-2016,Permanent'
+    ]));
+    await expect(page.locator('#map-step')).toBeVisible();
+    const sel = (key) => row(page, key).locator('select');
+    await sel('dob').focus();
+    // a closed <select> changes value (and fires change) on every arrow key:
+    // this walks DOB past every other field's header, then back to "Birth Dt"
+    for (let i = 0; i < 10; i++) await page.keyboard.press('ArrowDown');
+    await expect(sel('dob')).toBeFocused();
+    for (let i = 0; i < 2; i++) await page.keyboard.press('ArrowUp');
+    await expect(sel('dob').locator('option:checked')).toHaveText('Birth Dt');
+    await page.keyboard.press('Tab');
+    for (const [k, h] of [['employee_id', 'Employee ID'], ['name', 'Name'], ['asset', 'Asset'], ['grade_band', 'Grade Band'],
+      ['grade', 'Grade'], ['function', 'Function'], ['gender', 'Gender'], ['doj', 'Date of Joining'], ['employee_class', 'Employee Class']]) {
+      await expect(sel(k).locator('option:checked'), k).toHaveText(h);
+    }
+    await expect(page.locator('#ms-confirm')).toBeEnabled();
+    // a pick that takes another field's header is kept once focus moves on
+    await sel('doj').selectOption({ label: 'Birth Dt' });
+    await page.locator('#ms-title').focus();
+    await expect(sel('dob').locator('option:checked')).toHaveText('— unmapped —');
+    await expect(page.locator('#ms-confirm')).toBeDisabled();
+    // browsing the template list and coming back keeps the manual picks
+    await sel('dob').selectOption({ label: 'Date of Joining' });
+    await page.locator('[data-ms-template="0"]').focus();
+    await page.keyboard.press('ArrowDown');
+    await expect(page.locator('[data-ms-template="0"]')).not.toHaveValue('employee_master');
+    await page.keyboard.press('ArrowUp');
+    await expect(page.locator('[data-ms-template="0"]')).toHaveValue('employee_master');
+    await expect(sel('dob').locator('option:checked')).toHaveText('Date of Joining');
+    await expect(sel('doj').locator('option:checked')).toHaveText('Birth Dt');
+  });
+
+  test('a scope-locked persona sees no personal sample values on the mapping step', async ({ page }) => {
+    await page.goto(ARTIFACT);
+    await page.selectOption('#gate-persona', 'asset_head');
+    await page.selectOption('#gate-persona-asset', 'Vizag');
+    await page.click('#gate-mock');
+    await expect(page.locator('#map-step')).toBeVisible();
+    // rows are not scoped before mapping: IDs / names from other assets must not show
+    for (const k of ['employee_id', 'name']) {
+      await expect(page.locator(`[data-ms-file="0"] tr[data-ms-key="${k}"] .ms-samples`)).toHaveText('withheld (personal data)');
+    }
+    await expect(page.locator('[data-ms-file="0"] tr[data-ms-key="asset"] .ms-samples .ms-sample').first()).toBeAttached();
+    await confirmMapping(page);
+    await expect(page.locator('#app')).toBeVisible();
+  });
+
+  test('a manual pick on the canonical mock does not seed later real loads', async ({ page }) => {
+    await page.goto(ARTIFACT);
+    await page.click('#gate-mock');
+    await page.click('details.ms-card[data-ms-file="0"] summary');
+    await row(page, 'name').locator('select').selectOption({ label: 'Grade' });
+    await expect(row(page, 'name').locator('.ms-chip-manual')).toHaveText('manual');
+    await confirmMapping(page);
+    expect(await page.evaluate(() => Mapping.hasSeeds())).toBe(false);
   });
 
   test('field_map.csv export: spec headers, one row per template column, statuses and editable source system', async ({ page }) => {
