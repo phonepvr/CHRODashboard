@@ -949,39 +949,60 @@ const Mock = (() => {
   // Drop to 6 if the population or the Overview grows past that budget.
   const ABSENCE_MONTHS = 12;
 
+  // Realism (R9): unplanned absence is heavily skewed — most people are rarely
+  // absent, a small chronic tail drives the frequent-absence cohort (≥3 spells in
+  // 3 months: a few % of the roll, concentrated in blue collar). Spells are
+  // mostly 1–2 days with a long tail; rates rise with the monsoon and festive
+  // months, at the remote/older assets and on project sites, and in the months
+  // before a resignation. Planned leave clusters in May and the festive quarter
+  // and runs higher for senior staff (earned-leave balances). Day counts only.
   function genAbsence(allEmps) {
-    const rng = rngFor('absence');
+    const rng = rngFor('absence-v2');
     const HOLIDAYS = [1, 0, 1, 0, 1, 0, 0, 1, 0, 2, 1, 0];
-    const SEASON = [1, 1, 1.1, 1, 1, 1, 1.25, 1.25, 1.2, 1.15, 1.15, 1];      // monsoon + festive peaks
+    const SEASON = [1, 0.95, 1.05, 0.95, 1.05, 1.1, 1.25, 1.25, 1.15, 1.15, 1.15, 1];   // monsoon + festive peaks
     const LEAVE = [0.9, 0.8, 0.9, 0.9, 1.4, 1.2, 0.8, 0.8, 0.9, 1.3, 1.4, 1.3];
-    const ASSET_ABS = { Hazira: 0.9, Paradeep: 1.25, Vizag: 1.0, Kirandul: 1.15 };
-    const BAND_ABS = { SM: 0.008, MM: 0.012, JM: 0.018, 'Blue Collar': 0.03 };
+    const ASSET_ABS = { Hazira: 0.88, Paradeep: 1.28, Vizag: 1.0, Kirandul: 1.18 };
+    // slow drift across the 12 months (per month, multiplicative) — Paradeep worsening, Hazira easing
+    const ASSET_DRIFT = { Hazira: -0.006, Paradeep: 0.012, Vizag: 0, Kirandul: 0.004 };
+    const SEG_ABS = { Operations: 1, Projects: 1.14 };
+    // unplanned spells per scheduled day at personal factor 1
+    const BAND_SPELL = { SM: 0.0032, MM: 0.005, JM: 0.0077, 'Blue Collar': 0.0113 };
+    const LEAVE_BAND = { SM: 1.25, MM: 1.15, JM: 1, 'Blue Collar': 0.9 };
+    const SPELL_LEN = [[1, 0.42], [2, 0.27], [3, 0.13], [4, 0.07], [5, 0.05], [7, 0.04], [10, 0.02]];
     const months = [];
     for (let mi = AS_OF_MONTH - ABSENCE_MONTHS + 1; mi <= AS_OF_MONTH; mi++) {
       const start = monthEndDay(mi - 1) + 1, end = monthEndDay(mi);
       let sundays = 0;
       for (let d = start; d <= end; d++) if (dayToDate(d).getUTCDay() === 0) sundays++;
-      months.push({ my: monthIdxToMY(mi), m0: mi % 12, start, end, days: end - start + 1, work: end - start + 1 - sundays - HOLIDAYS[mi % 12] });
+      months.push({ my: monthIdxToMY(mi), k: mi - AS_OF_MONTH + ABSENCE_MONTHS - 1, m0: mi % 12, start, end, days: end - start + 1, work: end - start + 1 - sundays - HOLIDAYS[mi % 12] });
     }
+    const poisson = (lambda) => {
+      let n = 0, q = Math.exp(-lambda), acc = q;
+      const r = rng();
+      while (r > acc && n < 12) { n++; q *= lambda / n; acc += q; }
+      return n;
+    };
     const rows = [];
     for (const e of allEmps) {
       if (e.isTrainee || e.doj > AS_OF_DAY) continue;
       const exitDay = e.exitDay ?? Infinity;
       if (exitDay <= months[0].end) continue;
       const u = rng();
-      // ~4% chronic, ~8% elevated, the rest low — the frequent-absence cohort is real but small
-      const personal = u < 0.04 ? 4 + rng() * 3 : u < 0.12 ? 1.5 + rng() * 1.5 : 0.3 + rng() * 0.9;
-      const p = (BAND_ABS[e.mband] || 0.02) * ASSET_ABS[e.asset] * personal;
+      // 70% low · 22% moderate · 6% elevated · 2% chronic
+      const personal = u < 0.02 ? 3.5 + rng() * 2.5 : u < 0.08 ? 1.8 + rng() * 1.7 : u < 0.30 ? 0.8 + rng() * 1.0 : 0.25 + rng() * 0.55;
+      const base = (BAND_SPELL[e.mband] || 0.008) * ASSET_ABS[e.asset] * (SEG_ABS[e.seg] || 1) * personal;
+      const leaveP = 0.42 * (LEAVE_BAND[e.mband] || 1);
+      // resignations/terminations (not superannuation) show more absence in their final months
+      const leaver = exitDay !== Infinity && e.dob != null && yearsBetween(e.dob, exitDay) < CONFIG.retirementAge - 0.5;
       for (const s of months) {
         if (e.doj > s.end || exitDay <= s.end) continue; // on the roll at month end
         const scheduled = e.doj > s.start ? Math.max(1, Math.round(s.work * (s.end - e.doj + 1) / s.days)) : s.work;
-        const planned = rng() < 0.45 * LEAVE[s.m0] ? Math.min(scheduled, rng() < 0.9 ? rint(rng, 1, 4) : rint(rng, 5, 10)) : 0;
-        const lambda = scheduled * p * SEASON[s.m0] / 1.5;
-        let spells = 0, q = Math.exp(-lambda), acc = q;
-        const r = rng();
-        while (r > acc && spells < 12) { spells++; q *= lambda / spells; acc += q; }
+        const planned = rng() < leaveP * LEAVE[s.m0] ? Math.min(scheduled, rng() < 0.88 ? rint(rng, 1, 4) : rint(rng, 5, 12)) : 0;
+        const preExit = leaver && exitDay - s.end < 75 ? 1.6 : 1;
+        const lambda = scheduled * base * SEASON[s.m0] * (1 + ASSET_DRIFT[e.asset] * s.k) * preExit;
+        const spells = poisson(lambda);
         let unplanned = 0;
-        for (let k = 0; k < spells; k++) unplanned += 1 + (rng() < 0.35 ? 1 : 0) + (rng() < 0.08 ? 1 : 0);
+        for (let k = 0; k < spells; k++) unplanned += pickW(rng, SPELL_LEN);
         unplanned = Math.min(unplanned, scheduled - planned);
         rows.push([e.id, s.my, scheduled, scheduled - planned - unplanned, planned, unplanned, Math.min(spells, unplanned)]);
       }
