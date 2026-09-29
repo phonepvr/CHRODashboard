@@ -17,11 +17,7 @@ const Exports = (() => {
   }
 
   // Which registry metrics consume a given file/column?
-  function consumers(schemaId, colName) {
-    return REGISTRY
-      .filter((e) => e.inputs.some((i) => i.dataset === schemaId && i.columns.includes(colName)))
-      .map((e) => e.key);
-  }
+  const consumers = (schemaId, colName) => Mapping.consumers(schemaId, colName);
 
   function typeLabel(col) {
     switch (col.type) {
@@ -201,6 +197,6 @@ const Exports = (() => {
       left out of every export; identifiers follow its PII rule (${esc(Access.PII_LABEL[Access.pii()].toLowerCase())}).</p>` });
   }
 
-  return { templateCSV, downloadTemplate, downloadAllTemplates, dataDictionaryCSV, downloadDataDictionary,
+  return { templateCSV, downloadTemplate, downloadAllTemplates, dataDictionaryCSV, downloadDataDictionary, typeLabel,
            openTemplatesModal, openExportModal, exportTabCSV, exportAllCSV, exportTabChartsPNG, drillCSV, svgToPng };
 })();

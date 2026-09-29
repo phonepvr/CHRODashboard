@@ -62,29 +62,19 @@ const CSV = {
     return { headers, rows: rows.slice(1), warnings };
   },
 
-  // Which schema does this parsed file belong to? -> { schemaId, missing, unexpected } | null
-  // Score = share of the file's headers the schema recognises (floored by the
-  // schema's required-column count so tiny files cannot match big templates);
-  // ties go to the schema the file covers best. Optional columns therefore never
-  // stop a legacy file (written before they existed) from routing.
-  matchSchema(headers) {
-    const set = new Set(headers.map((h) => h.toLowerCase()));
-    let best = null;
-    for (const id of SCHEMA_IDS) {
-      const cols = SCHEMAS[id].columns;
-      const hit = cols.filter((c) => set.has(c.name.toLowerCase())).length;
-      const required = cols.filter((c) => c.required).length;
-      const score = hit / Math.max(set.size, required);
-      const cover = hit / cols.length;
-      if (!best || score > best.score || (score === best.score && cover > best.cover)) best = { schemaId: id, score, cover, hit };
-    }
-    if (!best || best.hit < 2 || best.score < 0.5) return null;
-    const schema = SCHEMAS[best.schemaId];
-    const want = new Set(schema.columns.map((c) => c.name.toLowerCase()));
+  // Which schema does this parsed file belong to? -> { schemaId, score, cols, missing, unexpected } | null
+  // Delegates to the field-mapping engine (03a-mapping.js): header similarity
+  // against each column's name + `aka` synonyms, greedy 1:1, best total score
+  // floored by the required-column count. Optional columns therefore never stop
+  // a legacy file (written before they existed) from routing.
+  matchSchema(headers, fileName) {
+    const best = Mapping.detect(headers, fileName);
+    if (!best) return null;
+    const cols = best.assignment.cols;
     return {
-      schemaId: best.schemaId,
-      missing: schema.columns.filter((c) => !set.has(c.name.toLowerCase())).map((c) => c.name),
-      unexpected: headers.filter((h) => !want.has(h.toLowerCase()))
+      schemaId: best.schemaId, score: best.score, cols,
+      missing: SCHEMAS[best.schemaId].columns.filter((c) => cols.get(c.key)?.header == null).map((c) => c.name),
+      unexpected: Mapping.unmappedHeaders(headers, cols)
     };
   },
 

@@ -2,6 +2,7 @@ import { test, expect } from '@playwright/test';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { mkdirSync, writeFileSync } from 'node:fs';
+import { loadMock, confirmMapping } from './helpers.mjs';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const ARTIFACT = 'file://' + join(root, 'dist', 'index.html');
@@ -24,11 +25,6 @@ async function gotoGate(page, log = { file: [], network: [] }) {
   armNetworkTripwire(page, log);
   await page.goto(ARTIFACT);
   return log;
-}
-
-async function loadMock(page) {
-  await page.click('#gate-mock');
-  await expect(page.locator('#app')).toBeVisible();
 }
 
 test.describe('HR Dashboard @AM/NS — scaffold', () => {
@@ -158,6 +154,7 @@ test.describe('HR Dashboard @AM/NS — scaffold', () => {
     const empPath = join(fixDir, 'employee_master.csv');
     writeFileSync(empPath, empCsv);
     await page.setInputFiles('#file-input', empPath);
+    await confirmMapping(page);
     await expect(page.locator('#app')).toBeVisible();
     await expect(page.locator('.modal')).toContainText('3 of 3 rows loaded');
     await page.keyboard.press('Escape');

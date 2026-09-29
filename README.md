@@ -29,6 +29,12 @@ The page opens at a **load gate** with three actions:
 3. **Explore with mock data** — deterministic seeded synthetic data (identical numbers
    every run), clearly labelled *Illustrative data* on screen and in print.
 
+Every load — mock included — then passes a **Map your columns** step: each file is matched
+to a template by its header names (synonyms and fuzzy matches allowed), every template
+field shows the source header it will be read from, and missing required fields block
+the dashboard until they are mapped. The **Field Mapping** tab keeps the resulting map
+(memory only) and exports / imports it as `field_map.csv` — the integration spec for IT.
+
 Every tile and chart exposes an "i" affordance with its exact formula, input columns,
 caveats and data-quality notes, all driven by **one formula registry** which also
 generates the Methodology appendix, the upload templates and the data dictionary.

@@ -151,8 +151,18 @@ Grade-band filter applies to employee-keyed tabs; segment filter applies everywh
    `openDrill` + `Access.maskDrill`; feature detail tables use `Access.maskTable(cols, rows)`
    (null ⇒ withhold) and `Access.cellText(n)` for small cells. Orphan rows (ID not in master) now
    count only when `Compute.isUnscoped(ctx)` (idp/lms/internal apps/L&D charts).
-3. `[ ]` **Core-C (field mapping)** — mapping engine, mapping step, Field Mapping tab,
+3. `[x]` **Core-C (field mapping)** — mapping engine, mapping step, Field Mapping tab,
    field_map.csv export/import.
+   *Landed:* `03a-mapping.js` (`Mapping`: `normHdr`, `headerSimilarity`, `assign` greedy 1:1 ≥ 0.6,
+   `detect` = best total score floored by required count, file named after a template wins
+   near-ties; substring = whole words, never a one-word header; `CSV.matchSchema` delegates).
+   A mapping renames headers to canonical names before `CSV.applySchema`; datasets carry
+   `.mapping {fileName, cols, unmapped}` and `.headers` (source). `07a-mapstep.js` (`MapStep.open(files,
+   {mode, notes, onConfirm})`, `#map-step`, `#ms-confirm`, `[data-ms-template]`, `[data-ms-col]`) sits
+   between parse and dashboard for mock (hint = schema, no seeds), first load and Load / add files.
+   Seeds (memory only): imported field_map.csv (`#fieldmap-input`, gate link, or a map dropped with
+   the data) and manual picks this session. `tabs/fieldmap.js` + `css/fieldmap.css`. Tests go
+   through `tests/helpers.mjs` (`loadMock`, `openMock`, `loadFiles`, `confirmMapping`).
 4. `[ ]` **Feature fan-out** (git worktrees, each agent owns only NEW files + one tab file):
    overview-demographics, joining, movement, ta-pipeline, attrition, performance, managers,
    positions, absence, compliance.

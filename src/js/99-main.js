@@ -16,64 +16,107 @@ const App = {
 
 (() => {
 
-  /* ---------- dataset loading ---------- */
+  /* ---------- dataset loading: gate → parse → map your columns → dashboard ---------- */
 
-  function storeParsed(schemaId, parsed, sourceName) {
-    const applied = CSV.applySchema(schemaId, parsed);
-    App.state.datasets.set(schemaId, { ...applied, sourceName, headers: parsed.headers, parseWarnings: parsed.warnings });
+  // the confirmed mapping renames the headers first, so validation and every
+  // metric see the canonical template columns
+  function storeMapped(f, sourceName) {
+    const applied = CSV.applySchema(f.schemaId, Mapping.applyMapping(f.parsed, f.schemaId, f.cols));
+    App.state.datasets.set(f.schemaId, {
+      ...applied, sourceName, headers: f.parsed.headers, parseWarnings: f.parsed.warnings,
+      mapping: Mapping.snapshot(f.name, f.parsed, f.schemaId, f.cols)
+    });
     return applied;
   }
 
   function loadMock() {
+    const files = [...Mock.toCSVs()].map(([schemaId, text]) => ({ name: schemaId + '.csv', parsed: CSV.parse(text), hint: schemaId }));
+    MapStep.open(files, { mode: 'mock', onConfirm: commitMock });
+  }
+
+  function commitMock(mapped) {
     App.state.datasets.clear();
-    const files = Mock.toCSVs();
-    for (const [schemaId, text] of files) {
-      storeParsed(schemaId, CSV.parse(text), 'Illustrative');
-    }
+    for (const f of mapped) if (f.schemaId) storeMapped(f, 'Illustrative');
     App.state.loadedFileNames = [];
     enterDashboard('mock');
   }
 
+  const readText = (f) => new Promise((resolve) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve({ name: f.name, text: String(reader.result) });
+    reader.onerror = () => resolve({ name: f.name, error: true });
+    reader.readAsText(f);
+  });
+
   function loadFiles(fileList) {
+    if (MapStep.isOpen()) return;
     const files = [...fileList].filter((f) => /\.csv$/i.test(f.name) || f.type.includes('csv') || f.type === 'text/plain');
     if (!files.length) {
       UI.Modal.open({ title: 'No CSV files found', html: '<p>Please drop .csv files exported from the upload templates.</p>' });
       return;
     }
-    const results = [];
-    let done = 0;
-    // clear mock data on first real load; keep previously loaded real files so
-    // partial loads add up (from the gate on first load, or via "Load / add files")
-    if (App.state.mode === 'mock') App.state.datasets.clear();
-    const seenSchemas = new Map(); // schemaId -> first filename this batch (collision detection)
-    for (const f of files) {
-      const reader = new FileReader();
-      reader.onload = () => {
-        const parsed = CSV.parse(String(reader.result));
-        const match = CSV.matchSchema(parsed.headers);
-        if (!match) {
-          results.push({ file: f.name, ok: false, note: 'Not recognised as any template — headers do not match. Download the templates to see the expected columns.' });
-        } else {
-          const collidesWith = seenSchemas.get(match.schemaId);
-          seenSchemas.set(match.schemaId, f.name);
-          const applied = storeParsed(match.schemaId, parsed, f.name);
-          results.push({
-            file: f.name, ok: true, schemaId: match.schemaId,
-            missing: match.missing, unexpected: match.unexpected,
-            stats: applied.stats, errors: applied.errors,
-            warnings: parsed.warnings,
-            collidesWith
-          });
-          if (!App.state.loadedFileNames.includes(f.name)) App.state.loadedFileNames.push(f.name);
-        }
-        if (++done === files.length) finishLoad(results);
-      };
-      reader.onerror = () => {
-        results.push({ file: f.name, ok: false, note: 'Could not read the file.' });
-        if (++done === files.length) finishLoad(results);
-      };
-      reader.readAsText(f);
+    Promise.all(files.map(readText)).then((read) => {
+      const failed = [], data = [], notes = [];
+      for (const r of read) {
+        if (r.error) { failed.push({ file: r.name, ok: false, note: 'Could not read the file.' }); continue; }
+        const parsed = CSV.parse(r.text);
+        // a field_map.csv in the batch pre-seeds the mapping of the data files
+        if (Mapping.isFieldMap(parsed.headers)) notes.push(fieldMapNote(r.name, Mapping.importFieldMap(r.text)));
+        else data.push({ name: r.name, parsed });
+      }
+      for (const f of failed) notes.push(`${f.file}: ${f.note}`);
+      if (!data.length) {
+        UI.Modal.open({ title: 'Field map imported', html: notes.map((n) => `<p>${esc(n)}</p>`).join('') });
+        if (App.state.renderedTabs.delete('fieldmap')) UI.renderActiveTab();
+        return;
+      }
+      MapStep.open(data, { mode: 'byof', notes, onConfirm: (mapped) => commitFiles(mapped, failed) });
+    });
+  }
+
+  function fieldMapNote(name, r) {
+    return r.error ? `${name}: ${r.error}`
+      : `${name}: field map imported — ${r.mappings} source header${r.mappings === 1 ? '' : 's'} for ${r.templates} template${r.templates === 1 ? '' : 's'}` +
+        `${r.sources ? `, ${r.sources} source-system label${r.sources === 1 ? '' : 's'}` : ''}${r.skipped ? `; ${r.skipped} row${r.skipped === 1 ? '' : 's'} not recognised` : ''}. ` +
+        'They pre-seed the mapping of the next files you load (memory only).';
+  }
+
+  function importFieldMapFile(file) {
+    readText(file).then((r) => {
+      const note = r.error ? `${r.name}: could not read the file.` : fieldMapNote(r.name, Mapping.importFieldMap(r.text));
+      UI.Modal.open({ title: 'Field map import', html: `<p>${esc(note)}</p>` });
+      if (App.state.renderedTabs.delete('fieldmap')) UI.renderActiveTab();
+    });
+  }
+
+  function commitFiles(mapped, failed) {
+    // first real load replaces the mock; later loads add up (or replace per template)
+    if (App.state.mode === 'mock') { App.state.datasets.clear(); App.state.loadedFileNames = []; }
+    const results = [...failed];
+    const seen = new Map();   // schemaId -> first file this batch (collision report)
+    for (const f of mapped) {
+      if (!f.schemaId) {
+        results.push({ file: f.name, ok: false, note: f.parsed.headers.length
+          ? 'Not loaded — skipped on the mapping step (no template assigned). Download the templates to see the expected columns.'
+          : 'Not loaded — the file is empty.' });
+        continue;
+      }
+      const collidesWith = seen.get(f.schemaId);
+      seen.set(f.schemaId, f.name);
+      const applied = storeMapped(f, f.name);
+      const cols = SCHEMAS[f.schemaId].columns;
+      results.push({
+        file: f.name, ok: true, schemaId: f.schemaId,
+        missing: cols.filter((c) => f.cols.get(c.key)?.header == null).map((c) => c.name),
+        unexpected: Mapping.unmappedHeaders(f.parsed.headers, f.cols),
+        renamed: cols.filter((c) => { const v = f.cols.get(c.key); return v && v.header != null && v.header !== c.name; }).length,
+        stats: applied.stats, errors: applied.errors,
+        warnings: f.parsed.warnings,
+        collidesWith
+      });
+      if (!App.state.loadedFileNames.includes(f.name)) App.state.loadedFileNames.push(f.name);
     }
+    finishLoad(results);
   }
 
   function finishLoad(results) {
@@ -88,13 +131,14 @@ const App = {
       const errs = r.errors.map((e) =>
         `<li class="lr-err">${esc(e.message)} — ${e.count} row${e.count > 1 ? 's' : ''}` +
         (e.rows.length ? ` (e.g. row${e.rows.length > 1 ? 's' : ''} ${e.rows.slice(0, 6).join(', ')}${e.count > 6 ? '…' : ''})` : '') + `</li>`).join('');
-      const missing = r.missing.length ? `<li class="lr-err">Missing columns: ${esc(r.missing.join(', '))}</li>` : '';
-      const unexpected = r.unexpected.length ? `<li>Ignored unexpected columns: ${esc(r.unexpected.join(', '))}</li>` : '';
+      const missing = r.missing.length ? `<li>Optional columns not mapped: ${esc(r.missing.join(', '))}</li>` : '';
+      const unexpected = r.unexpected.length ? `<li>Ignored unmapped columns: ${esc(r.unexpected.join(', '))}</li>` : '';
+      const renamed = r.renamed ? `<li>${r.renamed} column${r.renamed > 1 ? 's' : ''} read from renamed source headers (see the Field Mapping tab)</li>` : '';
       const parseWarn = (r.warnings || []).map((w) => `<li class="lr-err">${esc(w)}</li>`).join('');
       const collide = r.collidesWith ? `<li class="lr-err">Both this file and “${esc(r.collidesWith)}” map to ${esc(r.schemaId)}.csv — this one replaced it. Load only one file per template.</li>` : '';
       return `<div class="lr-file">${esc(r.file)} → ${esc(r.schemaId)}.csv</div>
         <div class="lr-ok">✓ ${fmtInt(r.stats.acceptedRows)} of ${fmtInt(r.stats.totalRows)} rows loaded${r.stats.droppedRows ? ` · ${fmtInt(r.stats.droppedRows)} dropped (missing/invalid required values)` : ''}</div>
-        ${errs || missing || unexpected || parseWarn || collide ? `<ul>${collide}${parseWarn}${missing}${unexpected}${errs}</ul>` : ''}`;
+        ${errs || missing || unexpected || parseWarn || collide || renamed ? `<ul>${collide}${parseWarn}${renamed}${missing}${unexpected}${errs}</ul>` : ''}`;
     });
     const notLoaded = SCHEMA_IDS.filter((id) => !App.state.datasets.has(id));
     const partial = notLoaded.length
@@ -351,6 +395,7 @@ const App = {
     UI.Modal.open({
       title: 'How to use this dashboard', html: `
       <ul style="padding-left:18px; display:grid; gap:6px">
+        <li><strong>Map your columns</strong> — every load (the mock included) stops at a mapping step: files are matched to the upload templates and fields to your source headers; fix any match, then confirm. The <strong>Field Mapping</strong> tab shows the result and exports it as field_map.csv.</li>
         <li><strong>ⓘ on every tile</strong> — the exact formula, input columns, caveats and data-quality notes. Keyboard: Tab to the ⓘ, Enter to open, Esc to close.</li>
         <li><strong>Click a tile</strong> with a pointer cursor to drill into the underlying rows.</li>
         <li><strong>Asset selector</strong> recomputes every tab for Group, Hazira, Paradeep, Vizag or Kirandul; <strong>Business</strong> narrows every tab to Operations or Projects; the grade-band filter applies to employee-keyed tabs.</li>
@@ -370,6 +415,9 @@ const App = {
     document.getElementById('gate-load').addEventListener('click', () => input.click());
     document.getElementById('gate-templates').addEventListener('click', Exports.openTemplatesModal);
     input.addEventListener('change', () => { if (input.files.length) { loadFiles(input.files); input.value = ''; } });
+    const fmInput = document.getElementById('fieldmap-input');
+    document.getElementById('gate-fieldmap').addEventListener('click', () => fmInput.click());
+    fmInput.addEventListener('change', () => { if (fmInput.files.length) { importFieldMapFile(fmInput.files[0]); fmInput.value = ''; } });
 
     const loadCard = document.getElementById('gate-load');
     for (const el of [gate]) {
@@ -385,8 +433,9 @@ const App = {
     // Global guard: once the dashboard is showing, a file dropped anywhere would
     // otherwise navigate the tab to that file and destroy all in-memory state.
     // Swallow the default everywhere and route dropped CSVs into the loader.
-    document.addEventListener('dragover', (e) => { if (App.state.mode !== 'gate') e.preventDefault(); });
+    document.addEventListener('dragover', (e) => { if (App.state.mode !== 'gate' || MapStep.isOpen()) e.preventDefault(); });
     document.addEventListener('drop', (e) => {
+      if (MapStep.isOpen()) { e.preventDefault(); return; }   // finish or go back first
       if (App.state.mode === 'gate') return; // gate has its own handler above
       e.preventDefault();
       if (e.dataTransfer && e.dataTransfer.files.length) loadFiles(e.dataTransfer.files);
@@ -504,6 +553,7 @@ const App = {
   });
 
   App.loadMock = loadMock;       // exposed for tests
+  App.importFieldMapFile = importFieldMapFile;
   App.resetToGate = resetToGate;
   App.refreshChrome = refreshChrome;
   App.setPersona = setPersona;

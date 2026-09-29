@@ -1,16 +1,11 @@
 import { test, expect } from '@playwright/test';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
+import { openMock as loadMock, loadFiles } from './helpers.mjs';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const ARTIFACT = 'file://' + join(root, 'dist', 'index.html');
 const FIX = (f) => join(root, 'tests', 'fixtures', f);
-
-async function loadMock(page) {
-  await page.goto(ARTIFACT);
-  await page.click('#gate-mock');
-  await expect(page.locator('#app')).toBeVisible();
-}
 
 test.describe('Phase 3 — registry, scorecard, data quality', () => {
 
@@ -38,8 +33,7 @@ test.describe('Phase 3 — registry, scorecard, data quality', () => {
 
   test('scorecard end-to-end on a hand-checked fixture (incl. Target-not-set exclusion)', async ({ page }) => {
     await page.goto(ARTIFACT);
-    await page.setInputFiles('#file-input', [FIX('employee_master.csv'), FIX('exits.csv'), FIX('targets.csv')]);
-    await expect(page.locator('#app')).toBeVisible();
+    await loadFiles(page, [FIX('employee_master.csv'), FIX('exits.csv'), FIX('targets.csv')]);
     await page.keyboard.press('Escape'); // close load report
     await page.click('#tab-scorecard');
     // Hand-check: 12 permanent, 6 female → female_pct 50, target 50 higher → 100.

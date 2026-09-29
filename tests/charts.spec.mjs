@@ -1,16 +1,11 @@
 import { test, expect } from '@playwright/test';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
+import { openMock as loadMock, loadFiles } from './helpers.mjs';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const ARTIFACT = 'file://' + join(root, 'dist', 'index.html');
 const FIX = (f) => join(root, 'tests', 'fixtures', f);
-
-async function loadMock(page) {
-  await page.goto(ARTIFACT);
-  await page.click('#gate-mock');
-  await expect(page.locator('#app')).toBeVisible();
-}
 
 test.describe('Phase 4 — charts & interactivity', () => {
 
@@ -74,8 +69,7 @@ test.describe('Phase 4 — charts & interactivity', () => {
 
   test('partial load: charts needing missing datasets show the named empty state', async ({ page }) => {
     await page.goto(ARTIFACT);
-    await page.setInputFiles('#file-input', [FIX('employee_master.csv'), FIX('exits.csv')]);
-    await expect(page.locator('#app')).toBeVisible();
+    await loadFiles(page, [FIX('employee_master.csv'), FIX('exits.csv')]);
     await page.keyboard.press('Escape');
     await page.click('#tab-contract');
     await expect(page.locator('#panel-contract .chart-empty').first()).toContainText('contract_attendance.csv');

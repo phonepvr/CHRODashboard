@@ -1,15 +1,10 @@
 import { test, expect } from '@playwright/test';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
+import { openMock as loadMock } from './helpers.mjs';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const ARTIFACT = 'file://' + join(root, 'dist', 'index.html');
-
-async function loadMock(page) {
-  await page.goto(ARTIFACT);
-  await page.click('#gate-mock');
-  await expect(page.locator('#app')).toBeVisible();
-}
 
 test.describe('Phase 5 — outlook, print pack, exports', () => {
 

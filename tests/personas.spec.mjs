@@ -2,6 +2,7 @@ import { test, expect } from '@playwright/test';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { readFileSync } from 'node:fs';
+import { loadMock } from './helpers.mjs';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const ARTIFACT = 'file://' + join(root, 'dist', 'index.html');
@@ -20,8 +21,7 @@ async function loadMockAs(page, persona = 'chro', bind = {}) {
   await page.selectOption('#gate-persona', persona);
   if (bind.asset) await page.selectOption('#gate-persona-asset', bind.asset);
   if (bind.segment) await page.selectOption('#gate-persona-seg', bind.segment);
-  await page.click('#gate-mock');
-  await expect(page.locator('#app')).toBeVisible();
+  await loadMock(page);
 }
 
 async function download(page, trigger) {

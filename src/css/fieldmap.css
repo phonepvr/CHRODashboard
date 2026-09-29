@@ -1,0 +1,195 @@
+/* ============================================================
+   Field mapping (D1) — the "Map your columns" step and the
+   Field Mapping tab. Sharp edges, brand inks; confidence is
+   carried by the chip text, never by colour alone.
+   ============================================================ */
+
+.mapstep { min-height: 100vh; background: var(--white); }
+
+.ms-top {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  padding: 10px 20px 10px 24px;
+  background: var(--white);
+  border-bottom: 2px solid var(--black);
+  overflow: hidden;
+}
+.ms-headings { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.ms-title { font-size: 20px; font-weight: 700; letter-spacing: -0.01em; }
+.ms-title:focus { outline: none; }
+.ms-sub { font-size: 12.5px; color: var(--ink-70); }
+.ms-actions { margin-left: auto; display: flex; gap: 8px; }
+.ms-actions .btn, .ms-bottom .btn { white-space: nowrap; }
+.btn[disabled], .btn[disabled]:hover { background: var(--ink-20); border-color: var(--ink-20); color: var(--ink-70); cursor: not-allowed; }
+
+.ms-inner { max-width: 1280px; margin: 0 auto; padding: 16px 20px 48px; }
+.ms-intro { display: grid; gap: 6px; font-size: 13px; max-width: 900px; }
+.ms-intro .chip { vertical-align: 1px; margin-right: 4px; }
+.ms-fine { font-size: 11.5px; color: var(--ink-55); }
+
+.ms-status {
+  margin-top: 12px;
+  padding: 7px 10px;
+  font-size: 13px;
+  font-weight: 600;
+  border-left: 4px solid var(--status-good-ink);
+  background: var(--ink-05);
+}
+.ms-status.is-bad { border-left-color: var(--red); color: var(--status-bad-ink); background: var(--red-10); }
+.ms-tools { margin-top: 10px; }
+.ms-bottom { display: flex; justify-content: flex-end; margin-top: 16px; }
+
+/* file cards */
+.ms-card { margin-top: 10px; border: 1px solid var(--ink-20); border-top: 3px solid var(--black); background: var(--white); }
+.ms-card.ms-bad { border-top-color: var(--red); }
+.ms-card.ms-warn { border-top-color: var(--yellow); }
+.ms-card.ms-off { border-top-color: var(--ink-30); }
+.ms-card > summary {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  padding: 9px 12px;
+  cursor: pointer;
+  list-style: none;
+}
+.ms-card > summary::-webkit-details-marker { display: none; }
+.ms-card > summary::before {
+  content: "";
+  width: 7px; height: 7px;
+  border-right: 2px solid var(--ink-70);
+  border-bottom: 2px solid var(--ink-70);
+  transform: rotate(-45deg);
+  transition: transform 120ms ease;
+}
+.ms-card[open] > summary::before { transform: rotate(45deg); }
+.ms-fname { font-weight: 700; font-size: 14px; }
+.ms-tpl { font-size: 13px; color: var(--ink-70); }
+.ms-counter { font-size: 12px; color: var(--ink-55); margin-left: auto; }
+.ms-state {
+  padding: 1px 7px;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  border: 1px solid;
+}
+.ms-state-ok { border-color: var(--status-good-ink); color: var(--status-good-ink); }
+.ms-state-warn { border-color: var(--yellow); background: var(--yellow); color: var(--black); }
+.ms-state-bad { border-color: var(--red); background: var(--red); color: var(--white); }
+.ms-state-off { border-color: var(--ink-30); color: var(--ink-55); }
+
+.ms-card-body { padding: 2px 12px 12px; display: grid; gap: 8px; }
+.ms-card-controls { display: flex; align-items: flex-end; flex-wrap: wrap; gap: 8px 14px; }
+.ms-card-controls .ctl select { min-width: 300px; }
+.ms-detect { font-size: 12px; color: var(--ink-55); padding-bottom: 6px; }
+
+.ms-note { padding: 7px 10px; font-size: 12.5px; border-left: 4px solid var(--ink-30); background: var(--ink-05); }
+.ms-note-bad { border-left-color: var(--red); background: var(--red-10); color: var(--status-bad-ink); }
+.ms-note-warn { border-left-color: var(--yellow); color: var(--status-warn-ink); }
+.ms-note-unmapped { border-left-color: var(--yellow); }
+.ms-hdrs { display: block; margin-top: 4px; }
+.hdr-chip {
+  display: inline-block;
+  margin: 2px 4px 0 0;
+  padding: 1px 6px;
+  border: 1px dashed var(--ink-40);
+  background: var(--white);
+  font-family: ui-monospace, Menlo, Consolas, monospace;
+  font-size: 11.5px;
+}
+
+/* field rows */
+.ms-table td { vertical-align: middle; }
+.ms-table tr.is-missing td { background: var(--red-10); }
+.ms-field { display: block; font-weight: 600; }
+.ms-type { display: block; font-size: 11px; color: var(--ink-55); }
+.ms-req { white-space: nowrap; }
+.ms-select {
+  width: 100%;
+  min-width: 190px;
+  max-width: 300px;
+  padding: 4px 6px;
+  border: 1px solid var(--ink-20);
+  border-radius: 0;
+  background: var(--white);
+  font-size: 12.5px;
+}
+tr.is-missing .ms-select { border-color: var(--red); }
+.ms-samples { max-width: 320px; }
+.ms-sample {
+  display: inline-block;
+  margin: 1px 4px 1px 0;
+  padding: 0 5px;
+  background: var(--ink-05);
+  font-size: 11.5px;
+  white-space: nowrap;
+}
+.ms-used { white-space: nowrap; font-size: 12px; color: var(--ink-70); }
+.ms-muted { color: var(--ink-55); font-size: 11.5px; }
+
+.ms-chip {
+  display: inline-block;
+  margin-right: 4px;
+  padding: 0 6px;
+  border: 1px solid;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+.ms-chip-exact { border-color: var(--status-good-ink); color: var(--status-good-ink); }
+.ms-chip-fuzzy { border-color: var(--yellow); background: var(--yellow); color: var(--black); }
+.ms-chip-manual { border-color: var(--black); color: var(--black); }
+.ms-chip-missing { border-color: var(--red); background: var(--red); color: var(--white); }
+.ms-chip-missing.is-optional { border-color: var(--ink-30); background: none; color: var(--ink-55); }
+.ms-chip-req { border-color: var(--black); color: var(--black); }
+.ms-chip-opt { border-color: var(--ink-20); color: var(--ink-55); }
+.ms-chip-pii { border-color: var(--red); color: var(--status-bad-ink); }
+
+/* gate hint */
+.gate-fieldmap { margin-top: 10px; font-size: 12.5px; color: var(--ink-70); }
+.gate-fieldmap .linklike, .fm-summary .linklike, a.linklike {
+  padding: 0; border: 0; background: none; cursor: pointer;
+  font: inherit; font-weight: 600; color: var(--black); text-decoration: underline;
+}
+.gate-fieldmap .linklike:hover, a.linklike:hover { color: var(--red); }
+
+/* Field Mapping tab */
+.fm-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 10px; margin: 12px 0 4px; }
+.fm-method { margin: 6px 0 4px; font-size: 12.5px; color: var(--ink-70); max-width: 980px; }
+.fm-method summary { cursor: pointer; font-weight: 600; color: var(--black); padding: 4px 0; }
+.fm-source {
+  width: 100%;
+  min-width: 150px;
+  padding: 3px 6px;
+  border: 1px solid var(--ink-20);
+  border-radius: 0;
+  font-size: 12.5px;
+}
+.fm-hdr { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 12px; }
+.fm-next { display: block; font-size: 11px; color: var(--status-warn-ink); }
+.fm-unmapped { font-size: 12px; color: var(--ink-70); margin: 2px 0 6px; }
+.fm-status { display: inline-block; padding: 0 6px; font-size: 10.5px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; border: 1px solid; white-space: nowrap; }
+.fm-mapped, .fm-loaded { border-color: var(--status-good-ink); color: var(--status-good-ink); }
+.fm-missing { border-color: var(--red); background: var(--red); color: var(--white); }
+.fm-optional { border-color: var(--ink-30); color: var(--ink-55); }
+.fm-not-loaded { border-color: var(--ink-30); border-style: dashed; color: var(--ink-55); }
+
+@media (max-width: 900px) {
+  .ms-top { position: static; }
+  .ms-inner { padding: 14px 16px 40px; }
+  .ms-actions { margin-left: 0; }
+  .ms-counter { margin-left: 0; }
+  .ms-card-controls .ctl select { min-width: 0; width: 100%; }
+}
+
+@media print {
+  #map-step { display: none !important; }
+}
