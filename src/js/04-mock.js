@@ -763,6 +763,10 @@ const Mock = (() => {
         rows.push(c);
       }
     }
+    // ATS exports often leave gender blank: ~4% Unknown, drawn from their own
+    // stream so every draw above keeps its value (the TA tab shows Unknown explicitly)
+    const genderRng = rngFor('candidates-gender');
+    for (const c of rows) if (genderRng() < 0.04) c.gender = '';
     return rows;
   }
 
