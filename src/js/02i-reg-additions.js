@@ -104,7 +104,7 @@ defineMetric({
 /* =================== Performance-cycle discipline =================== */
 
 defineMetric({
-  key: 'goal_setting_pct', label: 'Goal-setting completion', tab: 'talent',
+  key: 'goal_setting_pct', label: 'Goal-setting completion', tab: 'performance',
   group: 'Performance management', unit: '%', direction: 'higher', scorecard: 'Performance & Rewards',
   formulaText: 'Employees with Goal Setting Complete Flag = Y ÷ employees in the cycle × 100',
   inputs: [{ dataset: 'pms_status', columns: ['Employee ID', 'Goal Setting Complete Flag'] },
@@ -113,7 +113,7 @@ defineMetric({
 });
 
 defineMetric({
-  key: 'midyear_review_pct', label: 'Mid-year review completion', tab: 'talent',
+  key: 'midyear_review_pct', label: 'Mid-year review completion', tab: 'performance',
   group: 'Performance management', unit: '%', direction: 'higher', scorecard: 'Performance & Rewards',
   formulaText: 'Employees with Mid-Year Review Complete Flag = Y ÷ employees in the cycle × 100',
   inputs: [{ dataset: 'pms_status', columns: ['Employee ID', 'Mid-Year Review Complete Flag'] },

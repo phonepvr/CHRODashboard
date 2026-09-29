@@ -1,0 +1,122 @@
+/* ============================================================
+   Performance tab (R6) — cycle-progress strip, phase switch,
+   laggard / line-manager tables. Monochrome: completion is the
+   Smart Red focus, open statuses are lightness-separated inks.
+   ============================================================ */
+
+/* ---------- cycle-progress strip: Goal → Mid-year → Annual ---------- */
+.perf-strip {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin-top: 4px;
+}
+.perf-step {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 9px 18px 8px 12px;
+  border-top: 2px solid var(--black);
+  border-right: var(--hairline);
+  min-width: 0;
+}
+.perf-step:last-child { border-right: 0; }
+/* the hand-off between phases: a thin chevron on the divider */
+.perf-step:not(:last-child)::after {
+  content: "";
+  position: absolute;
+  right: -6px; top: 38px;
+  width: 10px; height: 10px;
+  border-top: 1px solid var(--ink-40);
+  border-right: 1px solid var(--ink-40);
+  background: var(--white);
+  transform: rotate(45deg);
+  z-index: 1;
+}
+.perf-step .i-btn { top: 8px; right: 12px; }
+.perf-step-k {
+  font-size: 10px; font-weight: 600; text-transform: uppercase;
+  letter-spacing: 0.08em; color: var(--ink-55);
+}
+.perf-step-name { font-size: 13px; font-weight: 700; padding-right: 28px; }
+.perf-step-val { font-size: 26px; font-weight: 700; letter-spacing: -0.01em; line-height: 1.05; font-variant-numeric: tabular-nums; }
+.perf-step-val .unit { font-size: 14px; font-weight: 600; color: var(--ink-55); margin-left: 2px; }
+.perf-step-val .tile-lock { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 600; color: var(--ink-70); }
+.perf-step-n { font-size: 11.5px; color: var(--ink-55); font-variant-numeric: tabular-nums; }
+
+.perf-stack {
+  display: flex;
+  height: 10px;
+  margin: 5px 0 3px;
+  background: var(--ink-05);
+  overflow: hidden;
+}
+.perf-stack > span { display: block; height: 100%; min-width: 1px; }
+.perf-stack > span + span { border-left: 1px solid var(--white); }
+.perf-st-0 { background: var(--ink-10); }
+.perf-st-1 { background: var(--ink-30); }
+.perf-st-2 { background: var(--ink-55); }
+.perf-st-final { background: var(--red); }
+
+.perf-legend {
+  display: flex; flex-wrap: wrap; gap: 2px 10px;
+  font-size: 11px; color: var(--ink-70);
+}
+.perf-legend > span { display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; }
+.perf-legend b { font-weight: 700; color: var(--black); font-variant-numeric: tabular-nums; }
+.perf-sw { display: inline-block; width: 9px; height: 9px; }
+.perf-sw.perf-st-0 { box-shadow: inset 0 0 0 1px var(--ink-30); }
+
+.perf-step-meta {
+  display: flex; flex-wrap: wrap; gap: 4px 10px;
+  margin-top: 2px;
+  font-size: 11.5px; color: var(--ink-55);
+}
+.perf-step-meta .good { color: var(--status-good-ink); font-weight: 600; }
+.perf-step-meta .bad { color: var(--status-bad-ink); font-weight: 600; }
+
+.perf-tiles { margin-top: 10px; }
+
+/* ---------- phase switch in the "Completion by" head ---------- */
+.perf-by-head { flex-wrap: wrap; }
+.perf-phase { display: inline-flex; margin-left: auto; align-self: center; }
+.perf-phase-btn {
+  padding: 4px 10px;
+  border: 1px solid var(--black);
+  background: var(--white);
+  color: var(--black);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.perf-phase-btn + .perf-phase-btn { border-left: 0; }
+.perf-phase-btn:hover { color: var(--red); }
+.perf-phase-btn[aria-pressed="true"] { background: var(--black); color: var(--white); }
+.perf-phase-btn:focus-visible { outline: var(--focus-ring); outline-offset: 2px; }
+
+/* the cuts and the stuck tables read at full chart scale: two per row */
+.perf-by, .perf-stuck { grid-template-columns: repeat(auto-fit, minmax(min(520px, 100%), 1fr)); }
+
+/* ---------- laggard + line-manager tables ---------- */
+.perf-lag th, .perf-mgr th { white-space: normal; vertical-align: bottom; }
+.perf-lag td, .perf-mgr td { white-space: nowrap; }
+.perf-lag td:nth-child(n+3), .perf-lag th:nth-child(n+3),
+.perf-mgr td:nth-child(n+4), .perf-mgr th:nth-child(n+4) {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.perf-lag td:first-child { color: var(--ink-55); width: 1%; }
+.perf-lag .perf-neg { color: var(--status-bad-ink); font-weight: 600; }
+.perf-masked { margin: 2px 0 6px; }
+.perf-withheld { gap: 6px; }
+
+/* ---------- phone / narrow ---------- */
+@media (max-width: 760px) {
+  .perf-strip { grid-template-columns: 1fr; }
+  .perf-step { border-right: 0; }
+  .perf-step + .perf-step { margin-top: 8px; }
+  .perf-step:not(:last-child)::after { display: none; }
+  .perf-phase { margin-left: 0; flex-basis: 100%; }
+  .perf-phase-btn { flex: 1; }
+}
