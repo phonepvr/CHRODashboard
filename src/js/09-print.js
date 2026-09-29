@@ -1,7 +1,9 @@
 /* Print pack — pre-rendered into #print-root, dirty-checked before printing.
    Structure: branded cover → Group summary page → one page per asset
-   (summary, curated tiles, two charts, watch list) → data quality →
-   methodology appendix. A4 portrait; break rules live in print.css.
+   (summary, curated tiles, a compact workforce & talent row, two charts,
+   watch list) → data quality → methodology appendix. A4 portrait: each unit
+   page must fit one sheet (tests/outlook-print-export.spec.mjs checks it with
+   page.pdf()); break rules live in print.css.
    Persona-scoped: only the persona's in-scope units (Access.printScopes) and
    visible pages print; restricted tiles print restricted. */
 
@@ -12,6 +14,12 @@ const PrintPack = (() => {
     'headcount_close', 'attr_annualised', 'tt_count', 'succession_coverage',
     'learning_coverage_all', 'idp_coverage', 'posting_compliance', 'female_pct',
     'ltifr', 'contract_compliance_idx', 'contract_hc', 'near_retirement_pct'
+  ];
+  // key tiles of the Phase 8 areas: Overview demographics and budget, positions,
+  // joining, movement, TA, absence, performance cycle
+  const TALENT_TILE_KEYS = [
+    'demo_hc_yoy_pct', 'bva_variance_pct', 'pb_vacancy_pct', 'join_hires_ytd',
+    'mv_promotion_rate', 'ta_ttf_median', 'absenteeism_pct', 'midyear_review_pct'
   ];
 
   function markDirty() {
@@ -89,8 +97,8 @@ const PrintPack = (() => {
       UI.tableHTML(['Metric', 'Actual', 'Target', 'Score'], rows.slice(0, 8));
   }
 
-  function tilesBlock(keys) {
-    return `<div class="tile-grid pp-tiles">${keys.map((k) => UI.tileHTML(k)).join('')}</div>`;
+  function tilesBlock(keys, cls = '') {
+    return `<div class="tile-grid pp-tiles ${cls}">${keys.map((k) => UI.tileHTML(k)).join('')}</div>`;
   }
 
   const scopes = () => Access.chartScopes();
@@ -106,7 +114,7 @@ const PrintPack = (() => {
               { label: asset, role: 'focus', values: ChartData.monthsAxis(ctx).map((mi) => Compute.monthAttritionRate(m, ChartData.subCtx(ctx, asset), mi)) },
               ...(scopes().includes('Group') ? [{ label: 'Group', role: 'group', values: ChartData.monthsAxis(ctx).map((mi) => Compute.monthAttritionRate(m, { ...ctx, asset: 'Group' }, mi)) }] : [])
             ],
-            yFmt: (v) => fmtPct(v, 0), h: 180
+            yFmt: (v) => fmtPct(v, 0), h: 140
           })
         : '<div class="chart-empty">exits.csv not loaded</div>'
     });
@@ -116,7 +124,7 @@ const PrintPack = (() => {
         ? Charts.line({
             months: ChartData.monthsAxis(ctx),
             series: [{ label: asset, role: 'focus', values: ChartData.monthsAxis(ctx).map((mi) => Compute.activesAt(m, ChartData.subCtx(ctx, asset), 'Permanent', monthEndDay(mi)).length) }],
-            yFmt: (v) => fmtInt(v), h: 180
+            yFmt: (v) => fmtInt(v), h: 140
           })
         : '<div class="chart-empty">employee_master.csv not loaded</div>'
     });
@@ -124,11 +132,13 @@ const PrintPack = (() => {
   }
 
   function unitPage(asset) {
-    return withScope(asset, () => `<section class="print-page">
+    return withScope(asset, () => `<section class="print-page pp-unit">
       <div class="section-head"><h2 style="font-size:14pt">${esc(asset)} — ${asset === 'Group' ? 'Group executive summary' : 'Asset HR head summary'}</h2>
         <span class="sub">${esc(CONFIG.periodLabel)}${Compute.ctxNow().segment !== 'All' ? ' · Business: ' + esc(Compute.ctxNow().segment) : ''}${Compute.ctxNow().fn !== 'All' ? ' · Line function: ' + esc(Compute.ctxNow().fn) : ''}</span></div>
       ${summaryBlock(asset)}
       ${tilesBlock(ASSET_TILE_KEYS)}
+      <div class="section-head pp-subhead"><h2>Workforce &amp; talent</h2><span class="sub">headcount, budget, positions, hiring, movement, absence, performance cycle</span></div>
+      ${tilesBlock(TALENT_TILE_KEYS, 'pp-tiles-compact')}
       ${asset === 'Group' ? '' : assetCharts(asset)}
       ${watchList(asset)}
       __FOOTER__

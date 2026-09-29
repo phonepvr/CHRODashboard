@@ -270,9 +270,11 @@ test.describe('Phase 8 — R3 Movement tab', () => {
     await expect(page.locator('#panel-movement')).toHaveCount(0);
     const vis = await page.evaluate(() => PERSONAS.filter((p) => Access.tabVisibleFor(p.id, 'movement')).map((p) => p.id).sort());
     expect(vis).toEqual(['asset_head', 'chro', 'coe_talent', 'hrops', 'segment_head']);
-    // HRBP: no tab either; movement data is aggregate-only for it
+    // HRBP: no tab either; org is Full as shipped, so probe the aggregate-only path with a patched policy
     await page.evaluate(() => App.setPersona('hrbp', { asset: 'Vizag' }));
     await expect(page.locator('#tab-movement')).toHaveCount(0);
+    expect(await page.evaluate(() => [Access.level('mv_total'), Access.level('mv_promotion_rate')])).toEqual(['full', 'full']);
+    await page.evaluate(() => { PERSONA_BY_ID.get('hrbp').levels.org = 'agg'; App.setPersona('hrbp', { asset: 'Vizag' }); });
     expect(await page.evaluate(() => [Access.level('mv_total'), Access.level('mv_promotion_rate')])).toEqual(['agg', 'full']);
     const agg = await page.evaluate(() => {
       const el = document.createElement('section');

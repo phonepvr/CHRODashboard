@@ -76,7 +76,7 @@ Vizag:Andhra Pradesh, Kirandul:Chhattisgarh}`, `mgmtBands ['SM','MM','JM','Blue 
 - `absence_monthly`: Employee ID*, Month*, Scheduled Days*, Days Present*, Planned Leave Days, Unplanned Absence Days*, Absence Spells.
 - `statutory_compliance`: Asset*, Business Segment, Month*, Compliance Item*, Due Date*, Completed Date, Status* (On time|Late|Pending|Not applicable).
 
-## Navigation (grouped tab bar; landing = Overview after mapping)
+## Navigation (grouped tab bar; landing = Overview after mapping, or the persona’s own landing tab)
 Setup: **Field Mapping** · Executive: Overview · CHRO Scorecard · Outlook ·
 Workforce: **Managers** · **Positions & Budget** · **Movement** · **Absenteeism** ·
 Talent: Talent Management · **Performance** · L&D · Internal Mobility ·
@@ -123,6 +123,53 @@ Grade-band filter applies to employee-keyed tabs; segment filter applies everywh
 - SSC: contract-to-on-roll ratio, contract cost per manday, statutory compliance on-time %
   + pending/critical items (Contract & Compliance tab).
 
+## Delivered (R1–R12)
+- **R1 Overview demographics** — 9-tile strip (A, B, C, % YoY, % YTD, women D and D/A,
+  local domicile %, superannuation ≤ 3 y) on the on-roll (Permanent + Trainee); 13-month trend
+  tagged A/B/C; gender donut; HC by Company / Asset / Segment / Function / Function Plant /
+  Band / Level; superannuation buckets; paged employee table masked per persona (CSV).
+  **R1a** state-wise domicile + local-domicile % (home state per asset). **R1b** budget vs
+  actual: 5 tiles + Asset → Function → Function Plant tree (Budget, Actual, Variance, Var %,
+  Vacant), keyboard toggles, Expand all, CSV.
+- **R2 New Joining** — 7 tiles (hires YTD, women YTD and %, lateral, campus, GET, trailing
+  12 m); hire = DOJ in fiscal YTD, every class, later leavers included; 13-month trend;
+  cuts by type / company / asset / plant / MC / level / band / generation; masked details.
+- **R3 Movement** — 9 tiles (all, promotions, location / function / company transfers,
+  re-designations, segment changes, promotion rate, internal rate); a move counts for From
+  and To; monthly trend; asset→asset and level→level flow tables (< 5 shown as "<5"); by
+  band / level; employee history lookup gated by PII level; masked details.
+- **R4 TA Pipeline** — 20 hiring metrics: snapshot (book as-of) and delivery (period) bases;
+  status / ageing / TBO bars, TTF histogram and by level, asset / function scorecards,
+  ageing-reason Pareto, aged worklist, funnel yields, stage dwell + bottleneck, female share
+  by stage, source mix and effectiveness, recruiter productivity (masked, n < 5 guard), drops.
+- **R5 Attrition** — fiscal-YTD strip (separated, annualised, FY-start HC, as-of HC,
+  absolute % per D6, retirements); All / Voluntary / Involuntary toggle; rate cuts by tenure,
+  gender, generation, band, level, company, asset, MC member, plant; reason categories;
+  masked details (CSV).
+- **R6 Performance** — goal setting → mid-year → annual: 5 tiles, phase strip, status funnel
+  per phase, completion by asset / segment / function / level / band, laggard functions,
+  top line managers awaiting action; flags and statuses only.
+- **R7 Managers** — total line managers, manager-to-employee ratio, same-level managers,
+  women managers and share; counts and ratios by asset / band / level / plant; scope-bucket
+  filter; same-level by level; gender; manager table (CSV), masked for HRBP.
+- **R8 Positions & Budget** — 11 tiles (total, filled, vacant, frozen / on hold, vacancy %,
+  vacant > 90 d, vacant without open req, critical vacant, budgeted unfilled, budget fill %,
+  incumbents without position ID); vacancy % by asset / function / level, ageing, req cover,
+  budget vs filled by asset and function; position register.
+- **R9 Absenteeism** — absenteeism %, attendance %, planned-leave %, spells per employee,
+  frequent-absence cohort (≥ 3 spells / 3 months, COUNT ONLY), days lost; trend, day mix,
+  cuts by function / level / band / segment, asset × month heat table; day counts only.
+- **R10 Segment filter** — `#sel-seg` on every tab; employee → org_units → Unassigned; panel
+  datasets carry an optional segment column; chips in header, footer and print footers.
+- **R11 Field mapping** — mapping step after every load + Field Mapping tab; D2 matcher;
+  `field_map.csv` export / import with the source system per template.
+- **R12 Personas + Access Matrix** — 8 personas, one policy (`02z-access.js`), enforced on
+  every surface incl. print and exec summary; PII identified / masked / none; minCell 5;
+  Access Matrix tab + `access_matrix.csv` with the IT hand-off requirements.
+- **SSC (D10)** — Contract & Compliance: contract-to-on-roll ratio, cost per man-day and period
+  cost, statutory on-time %, late, pending past due, average days past due, item × asset
+  board, worklist.
+
 ## Execution plan (workflows)
 1. `[x]` **Core-A (data)** — schemas, CONFIG, mock generator for every new column/template
    (deterministic, per-domain streams), assemble.mjs loads all `src/css/*.css`, compute
@@ -163,11 +210,33 @@ Grade-band filter applies to employee-keyed tabs; segment filter applies everywh
    Seeds (memory only): imported field_map.csv (`#fieldmap-input`, gate link, or a map dropped with
    the data) and manual picks this session. `tabs/fieldmap.js` + `css/fieldmap.css`. Tests go
    through `tests/helpers.mjs` (`loadMock`, `openMock`, `loadFiles`, `confirmMapping`).
-4. `[ ]` **Feature fan-out** (git worktrees, each agent owns only NEW files + one tab file):
+4. `[x]` **Feature fan-out** (git worktrees, each agent owns only NEW files + one tab file):
    overview-demographics, joining, movement, ta-pipeline, attrition, performance, managers,
    positions, absence, compliance.
-5. `[ ]` **Integrate** — merge, print pack (persona-scoped, key tiles for new areas), exec
+   *Landed:* ten branches merged; each feature = `src/js/02<x>-reg-<feature>.js` (registry +
+   one `<Feature>Kit` namespace) + `src/js/tabs/<id>.js` + `src/css/<feature>.css` +
+   `tests/<feature>.spec.mjs`. Mock changes stay on their own rng domains (`movements-v2`,
+   `candidates-gender`, `absence-v2`, statutory registers); no placeholder tab remains.
+5. `[x]` **Integrate** — merge, print pack (persona-scoped, key tiles for new areas), exec
    summary rules, methodology decisions list, full suite green.
+   *Landed:* print unit pages gain a compact "Workforce & talent" row (`demo_hc_yoy_pct`,
+   `bva_variance_pct`, `pb_vacancy_pct`, `join_hires_ytd`, `mv_promotion_rate`,
+   `ta_ttf_median`, `absenteeism_pct`, `midyear_review_pct`; restricted tiles print locked);
+   tiles run four-up and each unit page fits ONE A4 sheet — asserted with `page.pdf()` for
+   CHRO and TA COE. Exec summary: vacancy vs target, requisitions aged > 180 d, statutory items
+   past due, absenteeism vs target, headcount vs approved budget, local domicile (target only).
+   Methodology: "Phase 8 decisions" (D1–D11) + "Feature definitions" tables; exclusions
+   corrected (budget vs actual is in scope). Demo targets for rates / medians / zero targets
+   only. Shared-file follow-ups applied: `PII_ID_COLUMNS` += `Employee Code`; pseudonyms get
+   a murmur3 fmix32 avalanche; HRBP `org` = Full (masked manager list, per the persona table);
+   a gate load opens on the persona's own landing tab; `fmtINR` prints full rupees below ₹1 L
+   (cost per man-day is unit ₹); `CONFIG.minBase` (attrition small base); single-segment
+   donut draws; goal / mid-year tiles drill (pending list); dead Talent performance slot and
+   `levelBelow` removed; Overview "Span of control" relabelled "Individual contributors per
+   manager"; Access Matrix notes per-cell (not complementary) suppression.
+   *Open follow-ups (not blocking):* optional `Dropped Date` on requisitions (drops by period);
+   `Charts.line({pointLabels})` / `Charts.column` to replace the local trend / column helpers in
+   joining and overview.
 6. `[ ]` **Adversarial review** — privacy/PII, persona consistency (every surface), metric
    correctness, requirement coverage vs this file → fix loop.
 7. `[ ]` **Deploy** — push, CI green, Pages live; screenshots; update this file.

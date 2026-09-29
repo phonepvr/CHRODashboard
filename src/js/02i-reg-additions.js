@@ -108,8 +108,9 @@ defineMetric({
   group: 'Performance management', unit: '%', direction: 'higher', scorecard: 'Performance & Rewards',
   formulaText: 'Employees with Goal Setting Complete Flag = Y ÷ employees in the cycle × 100',
   inputs: [{ dataset: 'pms_status', columns: ['Employee ID', 'Goal Setting Complete Flag'] },
-           { dataset: 'employee_master', columns: ['Employee ID', 'Asset', 'Grade Band'] }],
-  compute: (m, ctx) => Compute.pmsCompletion(m, ctx, 'goal_flag')
+           { dataset: 'employee_master', columns: ['Employee ID', 'Asset', 'Grade Band', 'Function', 'Business Segment'] }],
+  compute: (m, ctx) => Compute.pmsCompletion(m, ctx, 'goal_flag'),
+  drill: (m, ctx) => PerfKit.pendingDrill(m, ctx, 'goal')
 });
 
 defineMetric({
@@ -117,9 +118,10 @@ defineMetric({
   group: 'Performance management', unit: '%', direction: 'higher', scorecard: 'Performance & Rewards',
   formulaText: 'Employees with Mid-Year Review Complete Flag = Y ÷ employees in the cycle × 100',
   inputs: [{ dataset: 'pms_status', columns: ['Employee ID', 'Mid-Year Review Complete Flag'] },
-           { dataset: 'employee_master', columns: ['Employee ID', 'Asset', 'Grade Band'] }],
+           { dataset: 'employee_master', columns: ['Employee ID', 'Asset', 'Grade Band', 'Function', 'Business Segment'] }],
   caveat: 'Reviews only count once recorded on the system — conversations without records score zero.',
-  compute: (m, ctx) => Compute.pmsCompletion(m, ctx, 'midyear_flag')
+  compute: (m, ctx) => Compute.pmsCompletion(m, ctx, 'midyear_flag'),
+  drill: (m, ctx) => PerfKit.pendingDrill(m, ctx, 'midyear')
 });
 
 /* =================== Recognition =================== */

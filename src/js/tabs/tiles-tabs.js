@@ -33,7 +33,6 @@ TabRenderers.talent = (panel) => {
   renderTilesByGroup(panel, 'talent', {
     groupSubs: {
       'Hiring': 'feeds the CHRO Scorecard',
-      'Performance management': 'current cycle · records on system, not conversations',
       'Recognition': 'trailing 12 months · unique coverage, not volume'
     }
   });
@@ -45,22 +44,6 @@ TabRenderers.talent = (panel) => {
     Charts.card({
       title: 'Ready-now index by asset', infoKey: 'succ_ready_now',
       body: needData(['succession'], () => Charts.barH({ items: ChartData.assetBars('succ_ready_now', (v) => fmtPct(v, 0)), fmt: (v) => fmtPct(v, 0), target: Compute.metric('succ_ready_now').target?.value ?? null }))
-    })
-  ].join(''));
-  fillSlot('talent', 'Performance management', [
-    Charts.card({
-      title: 'Goal-setting completion by asset', sub: 'click a bar to focus', infoKey: 'goal_setting_pct',
-      body: needData(['pms_status', 'employee_master'], () => Charts.barH({
-        items: ChartData.assetBars('goal_setting_pct', (v) => fmtPct(v, 0)), fmt: (v) => fmtPct(v, 0),
-        target: Compute.metric('goal_setting_pct').target?.value ?? null
-      }))
-    }),
-    Charts.card({
-      title: 'Mid-year review completion by asset', infoKey: 'midyear_review_pct',
-      body: needData(['pms_status', 'employee_master'], () => Charts.barH({
-        items: ChartData.assetBars('midyear_review_pct', (v) => fmtPct(v, 0)), fmt: (v) => fmtPct(v, 0),
-        target: Compute.metric('midyear_review_pct').target?.value ?? null
-      }))
     })
   ].join(''));
   fillSlot('talent', 'Recognition', Charts.card({

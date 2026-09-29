@@ -114,7 +114,7 @@ const PERSONAS = [
   {
     id: 'hrbp', label: 'HR Business Partner', short: 'HRBP', scope: 'asset+function',
     tabs: ['overview', 'talent', 'performance', 'lnd', 'attrition', 'absence', 'managers'],
-    levels: { core: 'full', perf: 'full', learning: 'full', attendance: 'full', talent: 'agg', hiring: 'agg', org: 'agg', cost: 'hidden', ops: 'hidden', wellbeing: 'hidden' },
+    levels: { core: 'full', perf: 'full', learning: 'full', attendance: 'full', org: 'full', talent: 'agg', hiring: 'agg', cost: 'hidden', ops: 'hidden', wellbeing: 'hidden' },
     pii: 'masked',
     who: 'HRBP for one asset and one line function.'
   }
@@ -128,7 +128,7 @@ const NO_FUNCTION_DATASETS = new Set(['production_safety', 'contract_attendance'
 // Drill / detail-table columns that identify a person. IDs are pseudonymised
 // under 'masked'; name columns are dropped. A drill may declare its own
 // {pii: {ids: [...], names: [...]}} to override the detection.
-const PII_ID_COLUMNS = new Set(['Employee', 'Employee ID', 'Applicant', 'Incumbent', 'Incumbent ID', 'Successor', 'Successor ID', 'Manager', 'Manager ID', 'Candidate', 'Candidate ID']);
+const PII_ID_COLUMNS = new Set(['Employee', 'Employee ID', 'Employee Code', 'Applicant', 'Incumbent', 'Incumbent ID', 'Successor', 'Successor ID', 'Manager', 'Manager ID', 'Candidate', 'Candidate ID']);
 const PII_NAME_COLUMNS = new Set(['Name', 'Employee Name', 'Manager Name', 'Candidate Name', 'Incumbent Name']);
 
 const Access = (() => {
@@ -271,9 +271,18 @@ const Access = (() => {
 
   const pii = () => current().pii || 'none';
 
+  // FNV-1a alone maps near-identical IDs to near-identical hashes (order and
+  // adjacency would show through the mask); the murmur3 finaliser avalanches it.
+  function fmix32(h) {
+    h ^= h >>> 16; h = Math.imul(h, 0x85ebca6b);
+    h ^= h >>> 13; h = Math.imul(h, 0xc2b2ae35);
+    h ^= h >>> 16;
+    return h >>> 0;
+  }
+
   function pseudonym(id, prefix = 'EMP') {
     if (id == null || id === '') return id;
-    return prefix + '-' + hash32(SALT + '|' + id).toString(16).toUpperCase().padStart(8, '0').slice(0, 6);
+    return prefix + '-' + fmix32(hash32(SALT + '|' + id)).toString(16).toUpperCase().padStart(8, '0').slice(0, 6);
   }
 
   // → {columns, rows} with identifiers handled for the persona, or null when the

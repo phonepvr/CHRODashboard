@@ -224,8 +224,8 @@ defineMetric({
 /* =================== Contract labour cost [SCRUM] =================== */
 
 defineMetric({
-  key: 'contract_cost_per_manday', label: 'Contract labour cost per manday (₹)', tab: 'contract', access: 'cost',
-  group: 'Contract labour cost', unit: '', decimals: 0, direction: 'lower', source: CompKit.SRC_CL,
+  key: 'contract_cost_per_manday', label: 'Contract labour cost per manday', tab: 'contract', access: 'cost',
+  group: 'Contract labour cost', unit: '₹', decimals: 0, direction: 'lower', source: CompKit.SRC_CL,
   formulaText: 'Σ Contract Labour Cost ÷ Σ Man-days Present over the period\n(contractor-months that report a cost and man-days present > 0)',
   inputs: [{ dataset: 'contract_attendance', columns: ['Contractor', 'Asset', 'Month', 'Man-days Present', 'Contract Labour Cost'] }],
   caveat: 'Lower is cheaper, not automatically better — rates must stay at or above the statutory minimum wage; read it beside wage-payment timeliness. Invoiced cost as recorded; GST treatment follows the source.',

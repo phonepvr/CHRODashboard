@@ -13,6 +13,21 @@ const ExecSummary = (() => {
     const t = Compute.build().targets.get(key);
     return t ? t.value : null;
   }
+  // {t, off} against the loaded target (its own direction wins), or null when
+  // no target exists — a rule without one says nothing
+  function vsTarget(key, v) {
+    const t = Compute.build().targets.get(key);
+    if (!t || t.value == null || v == null) return null;
+    const dir = t.direction || REG_BY_KEY.get(key)?.direction || 'higher';
+    return { t: t.value, off: dir === 'lower' ? v > t.value : v < t.value };
+  }
+  // [value, target] as percentages; the value gains decimals until a figure
+  // just past its target no longer prints equal to it
+  function pctPair(v, t, d) {
+    let k = d;
+    while (k < d + 2 && v !== t && fmtNum(v, k) === fmtNum(t, k)) k++;
+    return [fmtPct(v, k), fmtPct(t, d)];
+  }
   const pp = (v) => `${v >= 0 ? '+' : '−'}${fmtNum(Math.abs(v), 1)}pp`;
 
   /* Each rule returns null or {type: 'watch'|'good'|'neutral', text, key} */
@@ -61,6 +76,30 @@ const ExecSummary = (() => {
       return null;
     });
 
+    // 3b. position vacancy rate vs target
+    R.push(() => {
+      const v = val('pb_vacancy_pct', asset);
+      const c = vsTarget('pb_vacancy_pct', v);
+      if (!c) return null;
+      const [vs, ts] = pctPair(v, c.t, 1);
+      if (c.off) {
+        const aged = val('pb_vacant_90d', asset);
+        return { type: 'watch', key: 'pb_vacancy_pct', text: `Vacancy rate at ${vs} is above the ${ts} target${aged ? ` — ${fmtInt(aged)} position${aged > 1 ? 's' : ''} vacant over 90 days` : ''}.` };
+      }
+      return { type: 'good', key: 'pb_vacancy_pct', text: `Vacancy rate at ${vs} is within the ${ts} target.` };
+    });
+
+    // 3c. requisitions aged beyond 180 days (D3 ageing threshold)
+    R.push(() => {
+      const n = val('ta_aged_180', asset);
+      if (!n) return null;
+      const pct = val('ta_aged_180_pct', asset);
+      const c = vsTarget('ta_aged_180_pct', pct);
+      const [ps, ts] = c ? pctPair(pct, c.t, 0) : [pct == null ? '' : fmtPct(pct, 0), ''];
+      const share = pct == null ? '' : ` (${ps} of open${c ? `; target ≤ ${ts}` : ''})`;
+      return { type: c && c.off ? 'watch' : 'neutral', key: 'ta_aged_180', text: `${fmtInt(n)} open requisition${n > 1 ? 's have' : ' has'} been open over 180 days${share}.` };
+    });
+
     // 4. posting compliance
     R.push(() => {
       const v = val('posting_compliance', asset);
@@ -72,7 +111,7 @@ const ExecSummary = (() => {
     R.push(() => {
       const v = val('mobility_ageing', asset);
       if (!v) return null;
-      return { type: 'watch', key: 'mobility_ageing', text: `${fmtInt(v)} internal applications have had no action for over 15 days.` };
+      return { type: 'watch', key: 'mobility_ageing', text: `${fmtInt(v)} internal application${v > 1 ? 's have' : ' has'} had no action for over 15 days.` };
     });
 
     // 6. VP+ learning gap
@@ -110,7 +149,25 @@ const ExecSummary = (() => {
       return null;
     });
 
-    // 9b. performance-cycle discipline
+    // 9a. statutory items past their due date — the due date is the threshold
+    R.push(() => {
+      const n = val('stat_pending_overdue', asset);
+      if (!n) return null;
+      const age = val('stat_overdue_age_avg', asset);
+      return { type: 'watch', key: 'stat_pending_overdue', text: `${fmtInt(n)} statutory item${n > 1 ? 's are' : ' is'} pending past the due date${age != null ? `, ${fmtInt(age)} days overdue on average` : ''} [Aparajita].` };
+    });
+
+    // 9b. absenteeism vs target
+    R.push(() => {
+      const v = val('absenteeism_pct', asset);
+      const c = vsTarget('absenteeism_pct', v);
+      if (!c || !c.off) return null;
+      const g = isGroup ? null : val('absenteeism_pct', 'Group');
+      const [vs, ts] = pctPair(v, c.t, 1);
+      return { type: 'watch', key: 'absenteeism_pct', text: `Absenteeism at ${vs} runs above the ${ts} target${g != null ? ` (Group: ${fmtPct(g, 1)})` : ''}.` };
+    });
+
+    // 9c. performance-cycle discipline
     R.push(() => {
       const v = val('midyear_review_pct', asset);
       if (v == null) return null;
@@ -121,6 +178,26 @@ const ExecSummary = (() => {
         return { type: 'watch', key: 'midyear_review_pct', text: `Mid-year reviews stand at ${fmtPct(v, 0)} against the ${fmtPct(t, 0)} bar${gap} — the cycle is slipping.` };
       }
       return null;
+    });
+
+    // 9d. headcount vs approved budget — the budget is the threshold
+    R.push(() => {
+      const v = val('bva_variance', asset), pct = val('bva_variance_pct', asset);
+      if (v == null || pct == null) return null;
+      if (v > 0) return { type: 'watch', key: 'bva_variance', text: `Permanent headcount is ${fmtInt(v)} over the approved budget (+${fmtPct(pct, 1)}).` };
+      if (v < 0) return { type: 'neutral', key: 'bva_variance', text: `Permanent headcount runs ${fmtInt(-v)} (${fmtPct(-pct, 1)}) below the approved budget — budgeted roles not yet filled.` };
+      return { type: 'good', key: 'bva_variance', text: 'Permanent headcount matches the approved budget.' };
+    });
+
+    // 9e. local domicile — only against a loaded target (no benchmark is assumed)
+    R.push(() => {
+      const v = val('demo_local_domicile_pct', asset);
+      const c = vsTarget('demo_local_domicile_pct', v);
+      if (!c) return null;
+      const [vs, ts] = pctPair(v, c.t, 1);
+      return c.off
+        ? { type: 'watch', key: 'demo_local_domicile_pct', text: `Local domicile at ${vs} is short of the ${ts} target.` }
+        : { type: 'good', key: 'demo_local_domicile_pct', text: `Local domicile at ${vs} meets the ${ts} target.` };
     });
 
     // 10. superannuation pressure

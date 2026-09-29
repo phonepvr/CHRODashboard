@@ -39,6 +39,57 @@ Every tile and chart exposes an "i" affordance with its exact formula, input col
 caveats and data-quality notes, all driven by **one formula registry** which also
 generates the Methodology appendix, the upload templates and the data dictionary.
 
+## Features
+
+- **Field mapping** — the mapping step above runs after every load (header matching by
+  synonyms, whole-word and token similarity, one-to-one); the **Field Mapping** tab (first in
+  the bar) shows the confirmed map per template and exports / imports `field_map.csv` with
+  the source system per template.
+- **Grouped navigation, 20 tabs** — Setup: Field Mapping · Executive: Overview, CHRO
+  Scorecard, Outlook · Workforce: **Managers**, **Positions & Budget**, **Movement**,
+  **Absenteeism** · Talent: Talent Management, **Performance**, L&D, Internal Mobility ·
+  Acquisition & Retention: **TA Pipeline**, **New Joining**, Attrition, Diversity ·
+  Operations: Contract & Compliance · Governance: Data Quality, Methodology, **Access Matrix**.
+  Overview adds employee demographics (headcount as-of / last year / FY start, YoY and YTD,
+  domicile, superannuation) and a budget-vs-actual matrix (Asset → Function → Function Plant);
+  Attrition adds a fiscal-YTD strip, an exit-type toggle and rate cuts; Contract & Compliance
+  adds the statutory register, manning mix and contract-labour cost per man-day.
+- **Business segment filter** — All · Operations · Projects on every tab, next to the asset,
+  grade-band and period selectors (the fiscal year starts in April; set
+  `CONFIG.fyStartMonth` to change it).
+- **Personas + Access Matrix** — eight HR personas chosen on the gate or in the header;
+  one policy decides, per metric class, Full · Aggregate only · Restricted, and every
+  surface (tiles, charts, "i", drill-downs, exports, print pack, executive summary,
+  scorecard, search) follows it. Identifiers are shown, pseudonymised or withheld by
+  persona; small cells below 5 are suppressed on restricted views. The Access Matrix tab
+  (CHRO only) is generated from the same policy and exports `access_matrix.csv`. It is a
+  mockup of the rules, **not a security control** — production must enforce them
+  server/data-side.
+
+  | Persona | Data scope | Tabs | Aggregate only · Restricted | Identifiers |
+  |---|---|---|---|---|
+  | CHRO (Group) | all | every tab | — | shown |
+  | Asset HR Head | own asset (Group as benchmark) | all but Access Matrix | cost, wellbeing · — | shown |
+  | Business HR Head | own segment | Overview, the Workforce and Talent groups, TA Pipeline, New Joining, Attrition | ops · cost, wellbeing | shown |
+  | TA & Mobility COE | all | Overview, TA Pipeline, New Joining, Mobility, Positions, Attrition | learning, attendance, ops · talent, performance, cost, wellbeing | pseudonymised |
+  | Talent & L&D COE | all | Talent, Performance, L&D, Mobility, Movement, Diversity | attendance, ops, cost · wellbeing | shown |
+  | C&B / HR Finance | all | Overview, Positions & Budget, Scorecard, Outlook | core, performance, hiring, learning, attendance, ops · talent, wellbeing | none (counts only) |
+  | HR Ops & IR | all | Contract & Compliance, Absenteeism, Movement, Data Quality | hiring, learning, cost, wellbeing · talent, performance | pseudonymised |
+  | HRBP | own asset + line function | Overview, Talent, Performance, L&D, Attrition, Absenteeism, Managers | talent, hiring · cost, ops, wellbeing | pseudonymised |
+
+  Field Mapping and Methodology are open to every persona.
+- **22 upload templates** — the original fifteen plus `org_units`, `hc_budget`, `positions`,
+  `employee_movements`, `candidate_pipeline`, `absence_monthly` and `statutory_compliance`
+  (with extended columns on employee master, exits, requisitions, performance status and the
+  contract / safety / wellbeing panels). Each template names its source system (HRMS, ATS,
+  LMS, Attendance, Finance/Budget master, SCRUM, Aparajita).
+- **Print pack** — cover, a Group page and one page per asset (summary, curated tiles, a
+  workforce & talent tile row, two charts, watch list), data quality and the methodology
+  appendix; scoped to the persona, each unit page sized to one A4 sheet.
+- **Executive summary** — rule-based sentences over registry values only, each against a
+  target, the approved budget, a due date or a defined ageing threshold; rules about metrics
+  a persona cannot see are dropped.
+
 ## Live site
 
 Deployed by GitHub Actions to GitHub Pages:

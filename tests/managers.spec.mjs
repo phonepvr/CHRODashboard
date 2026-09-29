@@ -182,11 +182,11 @@ test.describe('Phase 8 — R7 Managers tab', () => {
     expect(csv.text).toMatch(/AMNS-/);
   });
 
-  test('masked persona: aggregate-only HRBP gets no rows; with org Full the rows are pseudonymised', async ({ page }) => {
+  test('masked persona: HRBP with org Full gets pseudonymised rows; an aggregate-only policy gets none', async ({ page }) => {
     await openMock(page);
     const raw = await page.evaluate(() => MgrKit.rows(MgrKit.managers(Compute.build(), Compute.ctxNow())).map((row) => row[0]));
-    // policy as shipped: HRBP (asset + function locked, PII masked) holds org at 'agg'
-    await page.evaluate(() => App.setPersona('hrbp', { asset: 'Vizag' }));
+    // simulate a policy holding HRBP (asset + function locked, PII masked) at org 'agg'
+    await page.evaluate(() => { PERSONA_BY_ID.get('hrbp').levels.org = 'agg'; App.setPersona('hrbp', { asset: 'Vizag' }); });
     await page.click('#tab-managers');
     const panel = page.locator('#panel-managers');
     await expect(panel.locator('.tile[data-key="line_managers"] .tile-badge')).toHaveText('Aggregate only');
@@ -218,7 +218,7 @@ test.describe('Phase 8 — R7 Managers tab', () => {
       await expect(gcard.locator('.bar-value', { hasText: '<5' }).first()).toBeVisible();
     }
 
-    // simulate a policy granting HRBP org 'Full': rows appear, pseudonymised, names dropped
+    // the shipped policy (HRBP org 'Full'): rows appear, pseudonymised, names dropped
     await page.evaluate(() => { PERSONA_BY_ID.get('hrbp').levels.org = 'full'; App.setPersona('hrbp', { asset: 'Vizag' }); });
     await page.click('#tab-managers');
     await expect(panel.locator('.mg-table')).toBeVisible();

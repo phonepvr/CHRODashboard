@@ -59,14 +59,31 @@ test.describe('Phase 5 — outlook, print pack, exports', () => {
   test('page.pdf() paginates the pack with no tile split across pages', async ({ page }) => {
     await loadMock(page);
     await expect.poll(() => page.locator('#print-root .print-page').count(), { timeout: 10_000 }).toBe(8);
+    const sheets = (pdf) => (pdf.toString('latin1').match(/\/Type\s*\/Page[^s]/g) || []).length;
     const pdf = await page.pdf({ format: 'A4', preferCSSPageSize: true });
     expect(pdf.byteLength).toBeGreaterThan(60_000);
-    const text = pdf.toString('latin1');
-    const pageCount = (text.match(/\/Type\s*\/Page[^s]/g) || []).length;
     // 8 logical sections; methodology may flow over several sheets
-    expect(pageCount).toBeGreaterThanOrEqual(8);
-    // pagination sanity: every logical page renders (cover text + last page text present)
-    expect(pageCount).toBeLessThan(30);
+    expect(sheets(pdf)).toBeGreaterThanOrEqual(8);
+    expect(sheets(pdf)).toBeLessThan(30);
+    // every unit page (Group + each asset, with the workforce & talent row) fits ONE
+    // A4 sheet, so no tile can split across sheets — for CHRO and for a persona whose
+    // restricted tiles print as locks. Print the cover + unit pages only and count.
+    const unitsOnly = '@media print { #print-root .print-page:not(.pp-cover):not(.pp-unit) { display: none !important; } }';
+    for (const persona of ['chro', 'coe_ta']) {
+      if (persona !== 'chro') {
+        await page.evaluate((p) => App.setPersona(p), persona);
+        await page.evaluate(() => PrintPack.ensureFresh());
+      }
+      const units = await page.locator('#print-root .print-page.pp-unit').count();
+      expect(units, persona).toBe(5);
+      expect(await page.locator('#print-root .pp-unit .pp-tiles-compact').count(), persona).toBe(units);
+      // persona access holds on paper: TA COE cannot see the perf class (promotion rate, mid-year)
+      expect(await page.locator('#print-root .pp-tiles-compact .tile.is-restricted').count(), persona)
+        .toBe(persona === 'chro' ? 0 : 2 * units);
+      const style = await page.addStyleTag({ content: unitsOnly });
+      expect(sheets(await page.pdf({ format: 'A4', preferCSSPageSize: true })), persona).toBe(1 + units);
+      await style.evaluate((el) => el.remove());
+    }
   });
 
   test('exports: tab CSV, full CSV, chart PNGs and drill-row CSV all download locally', async ({ page }) => {
@@ -91,6 +108,10 @@ test.describe('Phase 5 — outlook, print pack, exports', () => {
     await page.click('#btn-export');
     await page.click('[data-export-charts]');
     await expect.poll(() => downloads.length, { timeout: 20_000 }).toBeGreaterThanOrEqual(4);
+    // the PNG export is staggered: wait until the count holds before counting on
+    let last = -1;
+    await expect.poll(() => { const same = downloads.length === last; last = downloads.length; return same; },
+      { intervals: [1_500], timeout: 30_000 }).toBe(true);
     const png = fs.readFileSync(await downloads[downloads.length - 1].path());
     expect(png.subarray(1, 4).toString()).toBe('PNG');
     expect(png.byteLength).toBeGreaterThan(5_000);

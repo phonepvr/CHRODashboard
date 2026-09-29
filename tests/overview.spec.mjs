@@ -313,10 +313,11 @@ test.describe('Overview — employee demographics & budget vs actual', () => {
     await expect(page.locator('#ovd-bva tbody tr.ovd-l0')).toHaveCount(4);
     await expect(page.locator('.tile[data-key="bva_variance"]')).toHaveAttribute('data-drill', 'bva_variance');
 
-    // HRBP: org is aggregate-only → budget tiles badge, matrix without drill
+    // HRBP: org is Full → the budget tiles drill; the matrix holds the own asset only
     await page.evaluate(() => App.setPersona('hrbp', { asset: 'Vizag' }));
     await page.click('#tab-overview');
-    await expect(page.locator('.tile[data-key="bva_variance"] .tile-badge')).toHaveText('Aggregate only');
+    await expect(page.locator('.tile[data-key="bva_variance"]')).toHaveAttribute('data-drill', 'bva_variance');
+    await expect(page.locator('.tile[data-key="bva_variance"] .tile-badge')).toHaveCount(0);
     await expect(page.locator('#ovd-bva tbody tr.ovd-l0')).toHaveCount(1);
     await expect(page.locator('#ovd-bva tbody tr.ovd-l0')).toContainText('Vizag');
 

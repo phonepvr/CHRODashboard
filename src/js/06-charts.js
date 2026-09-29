@@ -198,9 +198,13 @@ const Charts = (() => {
       const a1 = a0 + frac * Math.PI * 2;
       const large = frac > 0.5 ? 1 : 0;
       const p = (a, rad) => `${(cx + Math.cos(a) * rad).toFixed(1)},${(cy + Math.sin(a) * rad).toFixed(1)}`;
-      const d = `M ${p(a0, R)} A ${R} ${R} 0 ${large} 1 ${p(a1, R)} L ${p(a1, r)} A ${r} ${r} 0 ${large} 0 ${p(a0, r)} Z`;
+      // a lone 100% segment has start = end, which an SVG arc draws as nothing:
+      // close that ring in two halves (even-odd fill keeps the hole)
+      const d = frac >= 1 - 1e-9
+        ? `M ${p(a0, R)} A ${R} ${R} 0 1 1 ${p(a0 + Math.PI, R)} A ${R} ${R} 0 1 1 ${p(a0, R)} Z M ${p(a0, r)} A ${r} ${r} 0 1 0 ${p(a0 + Math.PI, r)} A ${r} ${r} 0 1 0 ${p(a0, r)} Z`
+        : `M ${p(a0, R)} A ${R} ${R} 0 ${large} 1 ${p(a1, R)} L ${p(a1, r)} A ${r} ${r} 0 ${large} 0 ${p(a0, r)} Z`;
       a0 = a1;
-      return `<path d="${d}" fill="${cols[i % cols.length]}" stroke="var(--white)" stroke-width="2"
+      return `<path d="${d}" fill-rule="evenodd" fill="${cols[i % cols.length]}" stroke="var(--white)" stroke-width="2"
         data-tip="${esc(`${it.label}: ${fmtInt(it.value)} (${fmtPct(frac * 100, 1)})`)}"/>`;
     }).join('');
     const legend = items.map((it, i) => `

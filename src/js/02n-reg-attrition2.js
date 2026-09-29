@@ -9,7 +9,7 @@
 
 const AttrKit = (() => {
 
-  const MIN_BASE = 20;          // average headcount below which a rate is flagged "small base"
+  const MIN_BASE = CONFIG.minBase;
   const TOP_PLANTS = 12;        // function plants drawn (highest rates with an adequate base)
   const BLANK = '(blank)';      // Compute.countBy / rateBy blank key
   const TYPES = ['All', 'Voluntary', 'Involuntary'];

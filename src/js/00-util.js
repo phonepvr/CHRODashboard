@@ -25,7 +25,8 @@ const CONFIG = {
   superannBuckets: [['<3M', 0, 3], ['3–6M', 3, 6], ['6–12M', 6, 12], ['1–2Y', 12, 24], ['2–3Y', 24, 36]], // months to superannuation
   generations: [['Boomer', -Infinity, 1965], ['Gen X', 1965, 1981], ['Millennial', 1981, 1997], ['Gen Z', 1997, Infinity]], // birth year
   taAgeingBuckets: [['0–30', 0, 31], ['31–60', 31, 61], ['61–90', 61, 91], ['91–180', 91, 181], ['181–365', 181, 366], ['365+', 366, Infinity]], // days open
-  minCell: 5                  // small-cell suppression threshold for persona-restricted cuts
+  minCell: 5,                 // small-cell suppression threshold for persona-restricted cuts
+  minBase: 20                 // average headcount below which a rate cut is flagged "small base"
 };
 
 /* ---------- strings & formatting ---------- */
@@ -52,14 +53,14 @@ function fmtPct(n, decimals = 1) {
   return fmtNum(n, decimals) + '%';
 }
 
-// Compact rupee formatting: 1.2 Cr / 34 L / 12k
+// Compact rupee formatting: ₹1.2 Cr / ₹34.0 L; below one lakh the full grouped
+// amount (₹1,019, never a rounded ₹1k)
 function fmtINR(n) {
   if (n == null || !isFinite(n)) return '—';
   const a = Math.abs(n);
   if (a >= 1e7) return '₹' + fmtNum(n / 1e7, 1) + ' Cr';
   if (a >= 1e5) return '₹' + fmtNum(n / 1e5, 1) + ' L';
-  if (a >= 1e3) return '₹' + fmtNum(n / 1e3, 0) + 'k';
-  return '₹' + fmtNum(n, 0);
+  return '₹' + fmtInt(n);
 }
 
 /* ---------- dates: epoch days + month keys ---------- */

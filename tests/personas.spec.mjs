@@ -31,7 +31,7 @@ async function download(page, trigger) {
 
 test.describe('Phase 8 — Core-B: grouped nav, segment filter, personas, access matrix', () => {
 
-  test('nav: grouped tab bar, every tab id, placeholders, roving tabindex across groups', async ({ page }) => {
+  test('nav: grouped tab bar, every tab id renders real content, roving tabindex across groups', async ({ page }) => {
     await loadMockAs(page);
     const ids = await page.evaluate(() => TABS.map((t) => t.id));
     for (const id of ['fieldmap', 'overview', 'scorecard', 'outlook', 'managers', 'positions', 'movement', 'absence',
@@ -45,9 +45,17 @@ test.describe('Phase 8 — Core-B: grouped nav, segment filter, personas, access
     // landing stays Overview; Field Mapping is first in the bar
     await expect(page.locator('#tab-overview')).toHaveAttribute('aria-selected', 'true');
     expect(await page.locator('#tablist [role="tab"]').first().getAttribute('id')).toBe('tab-fieldmap');
-    // new feature tabs render the clean placeholder
+    // no stub remains: every tab renders its own content for CHRO (no placeholder)
+    for (const id of ids) {
+      await page.click('#tab-' + id);
+      const panel = page.locator('#panel-' + id);
+      await expect(panel).toBeVisible();
+      expect(await panel.locator('.placeholder-note').count(), id).toBe(0);
+      await expect(panel).not.toContainText('This section is being built');
+      expect(await panel.locator('.tile, .card, .data-table, .exec-band, .am-table').count(), id).toBeGreaterThan(0);
+    }
     await page.click('#tab-positions');
-    await expect(page.locator('#panel-positions')).toContainText('This section is being built — see docs/PHASE8_PLAN.md');
+    await expect(page.locator('#panel-positions .section-head h2', { hasText: 'Position inventory' })).toBeVisible();
     // keyboard: arrows cross group boundaries, Home/End jump to the ends
     await page.click('#tab-outlook');
     await page.keyboard.press('ArrowRight');
@@ -168,6 +176,9 @@ test.describe('Phase 8 — Core-B: grouped nav, segment filter, personas, access
 
   test('restricted tiles, scorecard rows, charts and popovers show "Restricted" with no value', async ({ page }) => {
     await loadMockAs(page, 'coe_ta');
+    // a persona with its own landing tab opens there after the load
+    await expect(page.locator('#tab-ta')).toHaveAttribute('aria-selected', 'true');
+    await page.click('#tab-overview');
     const tile = page.locator('.tile[data-key="cost_per_tonne"]');
     await expect(tile).toHaveClass(/is-restricted/);
     await expect(tile).toContainText('Restricted for TA & Mobility COE');

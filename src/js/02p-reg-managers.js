@@ -163,7 +163,7 @@ defineMetric({
   group: 'Scope of manager', unit: '', decimals: 1, direction: null,
   formulaText: 'Σ active direct reports of the line managers in scope ÷ line managers in scope\n(n = average direct reports per line manager; read as 1 manager : n employees)',
   inputs: [{ dataset: 'employee_master', columns: ['Employee ID', 'Manager ID', 'Asset', 'Grade Band', 'Date of Joining', 'Employee Class'] }],
-  caveat: 'Direct reports only (one level down) — not total scope through the reporting tree. Differs from Overview “Span of control” (individual contributors ÷ managers, permanent roll).',
+  caveat: 'Direct reports only (one level down) — not total scope through the reporting tree. Differs from Overview “Individual contributors per manager” (individual contributors ÷ managers, permanent roll).',
   compute: (m, ctx) => MgrKit.when(m, () => MgrKit.summary(MgrKit.managers(m, ctx)).ratio),
   drill: (m, ctx) => MgrKit.detail(MgrKit.managers(m, ctx), 'Line managers by direct reports')
 });

@@ -311,6 +311,9 @@ const App = {
   }
 
   function enterDashboard(mode) {
+    // a load from the gate opens on the persona's landing tab (Overview unless
+    // the persona declares its own); adding files later keeps the current tab
+    if (App.state.mode === 'gate') App.state.activeTab = Access.landingTab();
     App.state.mode = mode;
     App.state.dataVersion++;
     // an HRBP bound before data existed gets the largest function at its asset

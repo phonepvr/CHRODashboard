@@ -265,7 +265,7 @@ test.describe('Phase 8 — R8 Positions & Budget', () => {
       hrbp: Access.levelFor('hrbp', 'pb_vacant'), talent: Access.tabVisibleFor('coe_talent', 'positions'),
       hrops: Access.tabVisibleFor('hrops', 'positions'), hrbpTab: Access.tabVisibleFor('hrbp', 'positions')
     }));
-    expect(levels).toEqual({ hrbp: 'agg', talent: false, hrops: false, hrbpTab: false });
+    expect(levels).toEqual({ hrbp: 'full', talent: false, hrops: false, hrbpTab: false });
     for (const [id, bind] of [['hrbp', { asset: 'Hazira' }], ['hrops', {}], ['coe_talent', {}]]) {
       await page.evaluate(([p, b]) => App.setPersona(p, b), [id, bind]);
       await expect(page.locator('#tab-positions'), id).toHaveCount(0);

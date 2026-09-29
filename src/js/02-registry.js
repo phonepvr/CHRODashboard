@@ -107,11 +107,11 @@ defineMetric({
 });
 
 defineMetric({
-  key: 'span_of_control', label: 'Span of control', tab: 'overview',
+  key: 'span_of_control', label: 'Individual contributors per manager', tab: 'overview',
   group: 'Workforce', unit: '', direction: null,
   formulaText: 'Individual contributors ÷ people managers\n(managers = active employees referenced as Manager ID by ≥1 active employee)',
   inputs: [{ dataset: 'employee_master', columns: ['Employee ID', 'Manager ID'] }],
-  caveat: 'Managers with dotted-line teams are counted once, by direct reports only.',
+  caveat: 'Permanent roll only; a whole-roll ratio, not direct reports — the Managers tab “Manager-to-employee ratio” counts direct reports of on-roll line managers. Managers with dotted-line teams are counted once, by direct reports only.',
   compute: (m, ctx) => {
     const a = Compute.actives(m, ctx, 'Permanent');
     if (!a.length) return null;

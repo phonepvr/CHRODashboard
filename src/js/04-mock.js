@@ -546,11 +546,6 @@ const Mock = (() => {
   const companyOf = (asset, plant) => (ORG_BY_PLANT.get(plant)?.company) || (asset === 'Kirandul' ? 'Company B' : 'Company A');
   const segOfPlant = (plant) => ORG_BY_PLANT.get(plant)?.seg || '';
   const mcOf = (o) => (o.asset === 'Kirandul' ? 'MC-09' : MC_BY_FUNC[o.func] || '');
-  const levelBelow = (lv) => {
-    const i = CONFIG.levels.indexOf(lv);
-    // the entry rung (M-11) has nothing below it: its promotions are in-level grade steps
-    return i < 0 ? lv : CONFIG.levels[Math.min(i + 1, CONFIG.levels.length - 2)];
-  };
   const hireSource = (rng, mode) => (mode === 'Internal' ? 'Internal Job Posting' : mode === 'Boomerang' ? 'Alumni / Rehire'
     : mode === 'Campus' ? 'Campus' : pickW(rng, EXT_SOURCES));
 
@@ -1199,7 +1194,17 @@ const Mock = (() => {
       ['goal_setting_pct', 100, 'higher'], ['midyear_review_pct', 90, 'higher'],
       ['learning_feedback_avg', 4.2, 'higher'], ['lnd_cost_per_emp', 4000, 'lower'],
       ['safety_learning_days', 1.2, 'higher'], ['compliance_coverage', 90, 'higher'],
-      ['recognition_coverage', 60, 'higher'], ['attr_voluntary', 8, 'lower']
+      ['recognition_coverage', 60, 'higher'], ['attr_voluntary', 8, 'lower'],
+      // Phase 8 demo targets: rates, medians and zero targets only, so each
+      // holds at every scope (no count target that depends on scope size).
+      ['demo_women_pct', 11, 'higher'], ['join_women_pct', 15, 'higher'], ['mgr_women_pct', 12, 'higher'],
+      ['attr_ytd', 9, 'lower'], ['attr_involuntary', 2, 'lower'],
+      ['ta_ttf_median', 75, 'lower'], ['ta_sla_breach', 35, 'lower'], ['ta_offer_accept', 85, 'higher'],
+      ['ta_aged_180_pct', 20, 'lower'], ['ta_drop_rate', 5, 'lower'],
+      ['annual_review_pct', 95, 'higher'],
+      ['pb_vacancy_pct', 5, 'lower'], ['pb_cp_vacant', 0, 'lower'], ['pb_no_position_id', 0, 'lower'],
+      ['absenteeism_pct', 2.5, 'lower'], ['abs_attendance_pct', 92, 'higher'],
+      ['stat_ontime_pct', 95, 'higher']
     ];
   }
 
