@@ -1,10 +1,13 @@
-/* Registry — Attrition */
+/* Registry — Attrition. Every figure here excludes retirements (superannuation),
+   which are counted separately. */
+
+const FY_START_LABEL = '1 ' + monthIdxToLabel(CONFIG.fyStartMonth - 1).split(' ')[0];
 
 defineMetric({
   key: 'attr_ytd', label: 'Attrition — fiscal YTD (annualised)', tab: 'attrition',
   group: 'Attrition rates', unit: '%', direction: 'lower',
-  formulaText: '(Exits since 1 April ÷ average headcount since 1 April)\n× (12 ÷ elapsed months) × 100',
-  inputs: [{ dataset: 'exits', columns: ['Employee ID', 'Exit Date'] },
+  formulaText: `(Exits since ${FY_START_LABEL} ÷ average headcount since ${FY_START_LABEL})\n× (12 ÷ elapsed months) × 100\n(Exit Type = Retirement excluded)`,
+  inputs: [{ dataset: 'exits', columns: ['Employee ID', 'Exit Date', 'Exit Type'] },
            { dataset: 'employee_master', columns: ['Employee ID', 'Date of Joining', 'Employee Class'] }],
   compute: (m, ctx) => Compute.ytdAttrition(m, ctx)
 });
@@ -18,8 +21,8 @@ for (const [key, label, pred, sc] of ATTR_COHORTS) {
   defineMetric({
     key, label: label + ' in period', tab: 'attrition',
     group: 'Cohort attrition', unit: '', decimals: 0, direction: 'lower', scorecard: sc,
-    formulaText: `Exits in period where the employee ${label === 'Trainee exits' ? 'is a Trainee' : 'is flagged ' + label.split(' ')[0]} (count)`,
-    inputs: [{ dataset: 'exits', columns: ['Employee ID', 'Exit Date'] },
+    formulaText: `Exits in period where the employee ${label === 'Trainee exits' ? 'is a Trainee' : 'is flagged ' + label.split(' ')[0]} (count)\n(Exit Type = Retirement excluded)`,
+    inputs: [{ dataset: 'exits', columns: ['Employee ID', 'Exit Date', 'Exit Type'] },
              { dataset: 'employee_master', columns: ['Employee ID', 'TT Flag', 'CT Flag', 'Employee Class'] }],
     compute: (m, ctx) => Compute.exitsInPeriod(m, ctx, null).filter((x) => pred(x.__emp)).length,
     drill: (m, ctx) => {
@@ -36,8 +39,8 @@ for (const [key, label, pred, sc] of ATTR_COHORTS) {
 defineMetric({
   key: 'attr_early_1y', label: 'Early turnover (≤1 yr tenure)', tab: 'attrition',
   group: 'Early turnover', unit: '%', direction: 'lower', scorecard: 'HR Operations',
-  formulaText: 'Exits in period with tenure ≤1 year ÷ joins in the trailing 12 months × 100',
-  inputs: [{ dataset: 'exits', columns: ['Employee ID', 'Exit Date'] },
+  formulaText: 'Exits in period with tenure ≤1 year ÷ joins in the trailing 12 months × 100\n(Exit Type = Retirement excluded)',
+  inputs: [{ dataset: 'exits', columns: ['Employee ID', 'Exit Date', 'Exit Type'] },
            { dataset: 'employee_master', columns: ['Employee ID', 'Date of Joining'] }],
   compute: (m, ctx) => {
     const joins = Compute.joinsInWindow(m, ctx, 12, null).length;
@@ -51,8 +54,8 @@ defineMetric({
 defineMetric({
   key: 'attr_early_2y', label: 'Early turnover (≤2 yrs tenure)', tab: 'attrition',
   group: 'Early turnover', unit: '%', direction: 'lower',
-  formulaText: 'Exits in period with tenure ≤2 years ÷ joins in the trailing 24 months × 100',
-  inputs: [{ dataset: 'exits', columns: ['Employee ID', 'Exit Date'] },
+  formulaText: 'Exits in period with tenure ≤2 years ÷ joins in the trailing 24 months × 100\n(Exit Type = Retirement excluded)',
+  inputs: [{ dataset: 'exits', columns: ['Employee ID', 'Exit Date', 'Exit Type'] },
            { dataset: 'employee_master', columns: ['Employee ID', 'Date of Joining'] }],
   compute: (m, ctx) => {
     const joins = Compute.joinsInWindow(m, ctx, 24, null).length;
@@ -66,8 +69,8 @@ defineMetric({
 defineMetric({
   key: 'attr_rehire_ok', label: 'Exits tagged OK to rehire', tab: 'attrition',
   group: 'Exit quality', unit: '', decimals: 0, direction: null,
-  formulaText: 'Exits in period with OK-to-Rehire Flag = Y (count)',
-  inputs: [{ dataset: 'exits', columns: ['Employee ID', 'Exit Date', 'OK-to-Rehire Flag'] }],
+  formulaText: 'Exits in period with OK-to-Rehire Flag = Y (count)\n(Exit Type = Retirement excluded)',
+  inputs: [{ dataset: 'exits', columns: ['Employee ID', 'Exit Date', 'Exit Type', 'OK-to-Rehire Flag'] }],
   caveat: 'A boomerang-hiring pool — read together with Closure Mode = Boomerang on requisitions.',
   compute: (m, ctx) => Compute.exitsInPeriod(m, ctx, null).filter((x) => x.rehire_flag).length
 });
@@ -75,8 +78,8 @@ defineMetric({
 defineMetric({
   key: 'attr_regretted', label: 'Regretted attrition', tab: 'attrition',
   group: 'Exit quality', unit: '%', direction: 'lower', scorecard: 'HR Operations',
-  formulaText: 'Exits in period with Regretted Flag = Y ÷ exits in period × 100',
-  inputs: [{ dataset: 'exits', columns: ['Employee ID', 'Exit Date', 'Regretted Flag'] }],
+  formulaText: 'Exits in period with Regretted Flag = Y ÷ exits in period × 100\n(Exit Type = Retirement excluded)',
+  inputs: [{ dataset: 'exits', columns: ['Employee ID', 'Exit Date', 'Exit Type', 'Regretted Flag'] }],
   compute: (m, ctx) => {
     const xs = Compute.exitsInPeriod(m, ctx, null);
     if (!xs.length) return null;

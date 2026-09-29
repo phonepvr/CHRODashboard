@@ -77,7 +77,7 @@ const Exports = (() => {
       formula registry that computes every tile. Load any subset — tiles whose inputs are
       missing simply grey out.</p>
       <p style="margin-top:8px">
-        <button class="btn btn-solid" data-template-all="1">Download all (12 templates + data dictionary)</button>
+        <button class="btn btn-solid" data-template-all="1">Download all (${SCHEMA_IDS.length} templates + data dictionary)</button>
         <button class="btn btn-outline" data-template-dict="1">data_dictionary.csv</button>
       </p>
       <div class="table-scroll"><table class="data-table">

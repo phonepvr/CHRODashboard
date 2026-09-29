@@ -149,11 +149,11 @@ defineMetric({
 defineMetric({
   key: 'req_open_90d', label: 'Senior requisitions open >90 days', tab: 'talent',
   group: 'Critical Positions', unit: '', decimals: 0, direction: 'lower', scorecard: 'Talent Acquisition',
-  formulaText: 'Open senior requisitions (AGM+) with Open Date >90 days before as-of (count)',
+  formulaText: 'Open senior requisitions (AGM+) with Open Date >90 days before as-of (count)\nOpen = no Closed Date and Req Status not Dropped/Closed',
   inputs: [{ dataset: 'requisitions', columns: ['Requisition ID', 'Grade', 'Open Date', 'Closed Date'] }],
   caveat: 'Proxy for positions vacant ≥3 months — the schema links vacancies to requisitions, not position IDs.',
-  compute: (m, ctx) => m.reqs.filter((r) => r.closed_date == null && r.open_date != null &&
-    Compute.inAsset(ctx, r.asset) && Compute.seniorReq(m, r) && (ctx.asOfDay - r.open_date) > 90).length
+  compute: (m, ctx) => m.reqs.filter((r) => Compute.reqOpen(r) && r.open_date != null &&
+    Compute.reqMatch(ctx, r) && Compute.seniorReq(m, r) && (ctx.asOfDay - r.open_date) > 90).length
 });
 
 defineMetric({

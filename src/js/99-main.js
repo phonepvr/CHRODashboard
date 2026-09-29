@@ -6,7 +6,7 @@ const App = {
     mode: 'gate',                 // 'gate' | 'mock' | 'byof'
     datasets: new Map(),          // schemaId -> {rows, errors, stats, sourceName}
     dataVersion: 0,
-    filters: { asset: 'Group', band: 'All', periodMonths: 3 },
+    filters: { asset: 'Group', band: 'All', segment: 'All', fn: 'All', periodMonths: 3 },
     activeTab: 'overview',
     renderedTabs: new Set(),
     loadedFileNames: []

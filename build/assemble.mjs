@@ -36,9 +36,14 @@ const fontPath = opt('--font');
 
 const read = (p) => readFileSync(join(root, p), 'utf8');
 
-// CSS parts, in cascade order.
-const css = ['src/css/tokens.css', 'src/css/app.css', 'src/css/print.css']
-  .map((p) => `/* ---- ${p} ---- */\n` + read(p))
+// CSS parts, in cascade order: tokens.css first, print.css last, every other
+// src/css/*.css alphabetically in between — a feature adds its own file.
+const cssDir = join(root, 'src/css');
+const cssFiles = readdirSync(cssDir).filter((f) => f.endsWith('.css'));
+const cssRank = (f) => (f === 'tokens.css' ? 0 : f === 'print.css' ? 2 : 1);
+const css = cssFiles
+  .sort((a, b) => cssRank(a) - cssRank(b) || (a < b ? -1 : a > b ? 1 : 0))
+  .map((f) => `/* ---- src/css/${f} ---- */\n` + readFileSync(join(cssDir, f), 'utf8'))
   .join('\n');
 
 // JS parts: everything under src/js sorted lexicographically (00-…, 01-…, …, 99-main.js),

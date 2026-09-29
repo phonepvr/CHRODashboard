@@ -274,7 +274,7 @@ TabRenderers.contract = (panel) => {
       body: needData(['contract_attendance'], () => {
         const { months, series } = ChartData.assetLines(ctx, (asset, mi) => {
           const c = ChartData.subCtx(ctx, asset);
-          const rows = m.cAtt.filter((r) => r.month === mi && Compute.inAsset(c, r.asset));
+          const rows = m.cAtt.filter((r) => r.month === mi && Compute.panelMatch(c, r));
           const dep = rows.reduce((s, r) => s + (r.mandays_deployed || 0), 0);
           return dep ? rows.reduce((s, r) => s + (r.mandays_present || 0), 0) / dep * 100 : null;
         });
@@ -286,7 +286,7 @@ TabRenderers.contract = (panel) => {
       body: needData(['contract_attendance'], () => {
         const latest = Compute.latestPanelMonth(m.cAtt, ctx);
         if (latest == null) return '<div class="chart-empty">No contractor rows in the period.</div>';
-        const rows = m.cAtt.filter((r) => r.month === latest && Compute.inAsset(ctx, r.asset))
+        const rows = m.cAtt.filter((r) => r.month === latest && Compute.panelMatch(ctx, r))
           .sort((a, b) => (b.contract_headcount || 0) - (a.contract_headcount || 0)).slice(0, 10);
         return Charts.barH({
           items: rows.map((r) => ({

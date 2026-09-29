@@ -2,42 +2,58 @@
    error collection, file→schema matching, and CSV serialisation.
    Everything runs in this browser tab; nothing is ever uploaded. */
 
+// enum comparison: case-insensitive, any dash (– — ‐ -) with or without spaces
+function enumNorm(s) {
+  return String(s).toLowerCase().replace(/[\u2010-\u2015]/g, '-').replace(/\s*-\s*/g, '-').replace(/\s+/g, ' ').trim();
+}
+
 const CSV = {
 
   // text -> { headers, rows, warnings }
+  // Scans delimiter-to-delimiter and slices (never char-by-char concatenation):
+  // the mock alone is ~10 MB of CSV, so this sits on the load-time budget.
   parse(text) {
     if (text.charCodeAt(0) === 0xFEFF) text = text.slice(1); // BOM
     const rows = [];
     const warnings = [];
-    let field = '', row = [], inQuotes = false, fieldStart = true, strayQuotes = 0;
-    const pushField = () => { row.push(field); field = ''; fieldStart = true; };
-    const pushRow = () => { rows.push(row); row = []; };
-    for (let i = 0; i < text.length; i++) {
-      const c = text[i];
-      if (inQuotes) {
-        if (c === '"') {
-          if (text[i + 1] === '"') { field += '"'; i++; }
-          else { inQuotes = false; }
-        } else field += c;
-      } else if (c === '"' && fieldStart) {
+    const n = text.length;
+    const SPECIAL = /[,\r\n"]/g;
+    let field = '', row = [], fieldStart = true, strayQuotes = 0, unclosed = false, i = 0;
+    while (i < n) {
+      if (fieldStart && text.charCodeAt(i) === 34) {
         // RFC4180: a quote opens a quoted field ONLY at the start of the field.
-        inQuotes = true;
+        let j = i + 1;
+        for (;;) {
+          const q = text.indexOf('"', j);
+          if (q < 0) { field += text.slice(j); j = n; unclosed = true; break; }
+          field += text.slice(j, q);
+          if (text.charCodeAt(q + 1) === 34) { field += '"'; j = q + 2; } else { j = q + 1; break; }
+        }
+        i = j;
         fieldStart = false;
-      } else if (c === ',') {
-        pushField();
-      } else if (c === '\n' || c === '\r') {
-        if (c === '\r' && text[i + 1] === '\n') i++;
-        pushField(); pushRow();
-      } else {
+        continue;
+      }
+      SPECIAL.lastIndex = i;
+      const m = SPECIAL.exec(text);
+      const end = m ? m.index : n;
+      if (end > i) { field += text.slice(i, end); fieldStart = false; }
+      if (end === n) break;
+      const c = text.charCodeAt(end);
+      i = end + 1;
+      if (c === 34) {
         // a quote mid-field is a literal character (e.g. an inch mark) — kept, not
         // treated as a delimiter, so the rest of the file is never swallowed.
-        if (c === '"') strayQuotes++;
-        field += c;
-        fieldStart = false;
+        strayQuotes++;
+        field += '"';
+        continue;
       }
+      row.push(field); field = ''; fieldStart = true;
+      if (c === 44) continue;
+      if (c === 13 && text.charCodeAt(i) === 10) i++;
+      rows.push(row); row = [];
     }
-    if (field !== '' || row.length) { pushField(); pushRow(); }
-    if (inQuotes) warnings.push('A quoted value was never closed — check for an unmatched double-quote; the last value may be truncated.');
+    if (field !== '' || row.length) { row.push(field); rows.push(row); }
+    if (unclosed) warnings.push('A quoted value was never closed — check for an unmatched double-quote; the last value may be truncated.');
     if (strayQuotes) warnings.push(`${strayQuotes} stray double-quote${strayQuotes > 1 ? 's' : ''} found mid-value and kept as literal characters — quote a whole field if it should contain commas or quotes.`);
     // drop fully-empty trailing rows
     while (rows.length && rows[rows.length - 1].every((v) => v.trim() === '')) rows.pop();
@@ -47,14 +63,20 @@ const CSV = {
   },
 
   // Which schema does this parsed file belong to? -> { schemaId, missing, unexpected } | null
+  // Score = share of the file's headers the schema recognises (floored by the
+  // schema's required-column count so tiny files cannot match big templates);
+  // ties go to the schema the file covers best. Optional columns therefore never
+  // stop a legacy file (written before they existed) from routing.
   matchSchema(headers) {
     const set = new Set(headers.map((h) => h.toLowerCase()));
     let best = null;
     for (const id of SCHEMA_IDS) {
-      const cols = SCHEMAS[id].columns.map((c) => c.name.toLowerCase());
-      const hit = cols.filter((c) => set.has(c)).length;
-      const score = hit / Math.max(cols.length, set.size);
-      if (!best || score > best.score) best = { schemaId: id, score, hit };
+      const cols = SCHEMAS[id].columns;
+      const hit = cols.filter((c) => set.has(c.name.toLowerCase())).length;
+      const required = cols.filter((c) => c.required).length;
+      const score = hit / Math.max(set.size, required);
+      const cover = hit / cols.length;
+      if (!best || score > best.score || (score === best.score && cover > best.cover)) best = { schemaId: id, score, cover, hit };
     }
     if (!best || best.hit < 2 || best.score < 0.5) return null;
     const schema = SCHEMAS[best.schemaId];
@@ -80,14 +102,21 @@ const CSV = {
       e.count++;
       if (e.rows.length < 50) e.rows.push(rowNo);
     };
+    // per-column plan, resolved once; dates/months/enums repeat heavily, so
+    // their coercion is memoised per distinct raw value
+    const plan = schema.columns.map((col) => ({
+      col,
+      idx: colIndex.get(col.name.toLowerCase()),
+      memo: col.type === 'date' || col.type === 'month' || col.type === 'enum' ? new Map() : null,
+      allowed: col.type === 'enum' ? new Map(ENUMS[col.enum].map((v) => [enumNorm(v), v])) : null
+    }));
     const seenKeys = new Set();
     const out = [];
     parsed.rows.forEach((raw, i) => {
       const rowNo = i + 2; // 1-based + header row
       const rec = { __row: rowNo };
       let rowOk = true;
-      for (const col of schema.columns) {
-        const idx = colIndex.get(col.name.toLowerCase());
+      for (const { col, idx, memo, allowed } of plan) {
         const rawVal = idx == null ? '' : (raw[idx] ?? '').trim();
         let val = rawVal === '' ? null : rawVal;
         if (val == null) {
@@ -95,13 +124,15 @@ const CSV = {
         } else {
           switch (col.type) {
             case 'date': {
-              const d = parseDMY(val);
+              let d = memo.get(val);
+              if (d === undefined) { d = parseDMY(val); memo.set(val, d); }
               if (d == null) { addErr(col.name, 'bad_date', `Couldn't read "${col.name}" — expected DD-MM-YYYY`, rowNo); val = null; if (col.required) rowOk = false; }
               else val = d;
               break;
             }
             case 'month': {
-              const m = parseMY(val);
+              let m = memo.get(val);
+              if (m === undefined) { m = parseMY(val); memo.set(val, m); }
               if (m == null) { addErr(col.name, 'bad_month', `Couldn't read "${col.name}" — expected MM-YYYY`, rowNo); val = null; if (col.required) rowOk = false; }
               else val = m;
               break;
@@ -120,10 +151,10 @@ const CSV = {
               break;
             }
             case 'enum': {
-              const allowed = ENUMS[col.enum];
-              const hitIdx = allowed.findIndex((a) => a.toLowerCase() === val.toLowerCase());
-              if (hitIdx < 0) { addErr(col.name, 'bad_enum', `"${col.name}" must be one of: ${allowed.join(' / ')}`, rowNo); val = null; if (col.required) rowOk = false; }
-              else val = allowed[hitIdx];
+              let hit = memo.get(val);
+              if (hit === undefined) { hit = allowed.get(enumNorm(val)) ?? null; memo.set(val, hit); }
+              if (hit == null) { addErr(col.name, 'bad_enum', `"${col.name}" must be one of: ${ENUMS[col.enum].join(' / ')}`, rowNo); val = null; if (col.required) rowOk = false; }
+              else val = hit;
               break;
             }
             default: /* id | text */ break;
@@ -150,9 +181,12 @@ const CSV = {
   // rows of arrays -> CSV text (quoting only where needed)
   serialize(headerRow, rows) {
     const cell = (v) => {
+      if (typeof v === 'number') return String(v);
       const s = String(v ?? '');
       return /[",\n\r]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
     };
-    return [headerRow, ...rows].map((r) => r.map(cell).join(',')).join('\r\n') + '\r\n';
+    const lines = [headerRow.map(cell).join(',')];
+    for (const r of rows) lines.push(r.map(cell).join(','));
+    return lines.join('\r\n') + '\r\n';
   }
 };

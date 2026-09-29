@@ -61,7 +61,7 @@ defineMetric({
     return lti * 1e6 / hrs;
   },
   spark: (m, ctx) => Compute.monthlySeries(m, ctx, (mi) => {
-    const rows = m.prod.filter((r) => r.month === mi && Compute.inAsset(ctx, r.asset));
+    const rows = m.prod.filter((r) => r.month === mi && Compute.panelMatch(ctx, r));
     const hrs = rows.reduce((s, r) => s + (r.man_hours || 0), 0);
     const lti = rows.reduce((s, r) => s + (r.lti || 0), 0);
     return hrs ? lti * 1e6 / hrs : null;

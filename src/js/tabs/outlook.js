@@ -97,8 +97,8 @@ const Outlook = (() => {
     const start = actives.length;
     const ytd = Compute.ytdAttrition(m, ctx) ?? 0;
     const monthlyExitRate = ytd / 100 / 12;
-    const openReqs = m.reqs.filter((r) => r.closed_date == null && Compute.inAsset(ctx, r.asset));
-    const closed = m.reqs.filter((r) => r.closed_date != null && r.open_date != null && Compute.inAsset(ctx, r.asset));
+    const openReqs = m.reqs.filter((r) => Compute.reqOpen(r) && Compute.reqMatch(ctx, r));
+    const closed = m.reqs.filter((r) => r.closed_date != null && r.open_date != null && Compute.reqMatch(ctx, r));
     const medTTF = median(closed.map((r) => r.closed_date - r.open_date)) ?? 90;
     const fillPerMonth = medTTF > 0 ? Math.min(openReqs.length, openReqs.length / (medTTF / 30)) : 0;
     const months = [];
@@ -137,8 +137,8 @@ const Outlook = (() => {
         body: '<div class="chart-empty">No data loaded for this panel — needs requisitions.csv.</div>'
       });
     }
-    const open = m.reqs.filter((r) => r.closed_date == null && Compute.inAsset(ctx, r.asset));
-    const closed = m.reqs.filter((r) => r.closed_date != null && r.open_date != null && Compute.inAsset(ctx, r.asset));
+    const open = m.reqs.filter((r) => Compute.reqOpen(r) && Compute.reqMatch(ctx, r));
+    const closed = m.reqs.filter((r) => r.closed_date != null && r.open_date != null && Compute.reqMatch(ctx, r));
     const medTTF = median(closed.map((r) => r.closed_date - r.open_date)) ?? 90;
     const perMonth = Math.max(1, Math.round(open.length / Math.max(1, medTTF / 30)));
     const months = [], vals = [];

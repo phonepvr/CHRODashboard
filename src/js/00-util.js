@@ -9,7 +9,23 @@ const CONFIG = {
   assets: ['Hazira', 'Paradeep', 'Vizag', 'Kirandul'],
   gradeBands: ['Below AM', 'AM-GM', 'VP & above'],
   bandLabels: { 'Below AM': 'Below AM', 'AM-GM': 'AM–GM', 'VP & above': 'VP & above' },
-  mockSeed: 987654321
+  mockSeed: 987654321,
+
+  fyStartMonth: 4,            // fiscal year starts in April; set 1 for calendar year
+  segments: ['Operations', 'Projects'],
+  companies: ['Company A', 'Company B', 'Company C'],   // generic legal-entity placeholders
+  assetHomeState: { Hazira: 'Gujarat', Paradeep: 'Odisha', Vizag: 'Andhra Pradesh', Kirandul: 'Chhattisgarh' },
+  mgmtBands: ['SM', 'MM', 'JM', 'Blue Collar'],
+  mgmtBandLabels: { SM: 'Senior management', MM: 'Middle management', JM: 'Junior management', 'Blue Collar': 'Blue collar' },
+  // grade ladder, senior → junior; GET = graduate engineer trainee
+  levels: ['M-2', 'M-3', 'M-4', 'M-5', 'M-6', 'M-7', 'M-8', 'M-9', 'M-10', 'M-11', 'GET'],
+  // buckets are [label, lo, hi) — lo inclusive, hi exclusive
+  scopeBuckets: [['1–2', 1, 3], ['3–5', 3, 6], ['6–10', 6, 11], ['11–20', 11, 21], ['21+', 21, Infinity]],
+  tenureBuckets: [['0–6M', 0, 0.5], ['6–12M', 0.5, 1], ['1–2Y', 1, 2], ['2–3Y', 2, 3], ['3–5Y', 3, 5], ['5–10Y', 5, 10], ['10Y+', 10, Infinity]],
+  superannBuckets: [['<3M', 0, 3], ['3–6M', 3, 6], ['6–12M', 6, 12], ['1–2Y', 12, 24], ['2–3Y', 24, 36]], // months to superannuation
+  generations: [['Boomer', -Infinity, 1965], ['Gen X', 1965, 1981], ['Millennial', 1981, 1997], ['Gen Z', 1997, Infinity]], // birth year
+  taAgeingBuckets: [['0–30', 0, 31], ['31–60', 31, 61], ['61–90', 61, 91], ['91–180', 91, 181], ['181–365', 181, 366], ['365+', 366, Infinity]], // days open
+  minCell: 5                  // small-cell suppression threshold for persona-restricted cuts
 };
 
 /* ---------- strings & formatting ---------- */
@@ -108,6 +124,25 @@ function retireMonthIdx(dobDay, age) {
 
 const AS_OF_DAY = parseDMY(CONFIG.asOf);
 const AS_OF_MONTH = dayToMonthIdx(AS_OF_DAY);
+
+// month index of the first month of the fiscal year containing monthIdx
+function fyStartMonthIdx(monthIdx) {
+  const s0 = CONFIG.fyStartMonth - 1;
+  const y = Math.floor(monthIdx / 12), m0 = monthIdx % 12;
+  return (m0 >= s0 ? y : y - 1) * 12 + s0;
+}
+
+// label of the [label, lo, hi) bucket holding value, or null
+function bucketOf(value, buckets) {
+  if (value == null || Number.isNaN(value)) return null;
+  for (const [label, lo, hi] of buckets) if (value >= lo && value < hi) return label;
+  return null;
+}
+
+function generationOf(dobDay) {
+  if (dobDay == null) return null;
+  return bucketOf(dayToDate(dobDay).getUTCFullYear(), CONFIG.generations);
+}
 
 /* ---------- PRNG: mulberry32 + string hash ---------- */
 

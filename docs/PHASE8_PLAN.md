@@ -124,9 +124,16 @@ Grade-band filter applies to employee-keyed tabs; segment filter applies everywh
   + pending/critical items (Contract & Compliance tab).
 
 ## Execution plan (workflows)
-1. `[ ]` **Core-A (data)** — schemas, CONFIG, mock generator for every new column/template
+1. `[x]` **Core-A (data)** — schemas, CONFIG, mock generator for every new column/template
    (deterministic, per-domain streams), assemble.mjs loads all `src/css/*.css`, compute
    segment filter + memo key + generic `rateBy/countBy` helpers, exits Retirement handling.
+   *Landed:* 22 templates, every column has `aka` + `ex`, every schema a `source`. Levels run
+   senior→junior (`M-2` top … `M-11`, `GET`); mock maps grade→level→band. Model gains
+   `orgUnits/orgByPlant, hcBudget, positionRows, movements, candidates, absence, statutory`;
+   rows carry `__seg`. Compute: `ctx.segment/fn`, `inSeg/inFn/orgMatch/reqMatch/panelMatch/
+   isUnscoped/segOf/orgOf/reqOpen`, `countBy`, `rateBy(m, ctx, (e, day) => key, {klass, pred, order})`,
+   `fyStartDay`; `exitsInPeriod(…, includeRetirements)` defaults to excluding retirements.
+   Mock absence = 12 months (whole mock load measured ~1.3–1.7 s click-to-paint).
 2. `[ ]` **Core-B (platform)** — grouped nav with all tab ids (stubs), segment selector,
    persona framework (`02z-access.js`) + gate/header switcher + enforcement + Access Matrix
    tab, attrition & contract renderers moved to own files.

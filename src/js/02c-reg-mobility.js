@@ -1,7 +1,7 @@
 /* Registry — Internal Mobility (internal job portal) */
 
 function mobReqsInPeriod(m, ctx) {
-  return m.reqs.filter((r) => r.open_date != null && Compute.inAsset(ctx, r.asset) &&
+  return m.reqs.filter((r) => r.open_date != null && Compute.reqMatch(ctx, r) &&
     dayToMonthIdx(r.open_date) >= ctx.startMonth && dayToMonthIdx(r.open_date) <= ctx.endMonth);
 }
 function mobAppsInPeriod(m, ctx) {
@@ -10,7 +10,7 @@ function mobAppsInPeriod(m, ctx) {
     const mi = dayToMonthIdx(a.application_date);
     if (mi < ctx.startMonth || mi > ctx.endMonth) return false;
     const r = m.reqById.get(a.requisition_id);
-    return !r || Compute.inAsset(ctx, r.asset);
+    return !r || Compute.reqMatch(ctx, r);
   });
 }
 
@@ -79,7 +79,7 @@ defineMetric({
   compute: (m, ctx) => m.apps.filter((a) => {
     if (!['Applied', 'Shortlisted'].includes(a.status)) return false;
     const r = m.reqById.get(a.requisition_id);
-    if (r && !Compute.inAsset(ctx, r.asset)) return false;
+    if (r && !Compute.reqMatch(ctx, r)) return false;
     const last = a.last_action_date ?? a.application_date;
     return last != null && (ctx.asOfDay - last) > 15;
   }).length,
@@ -87,7 +87,7 @@ defineMetric({
     const rows = m.apps.filter((a) => {
       if (!['Applied', 'Shortlisted'].includes(a.status)) return false;
       const r = m.reqById.get(a.requisition_id);
-      if (r && !Compute.inAsset(ctx, r.asset)) return false;
+      if (r && !Compute.reqMatch(ctx, r)) return false;
       const last = a.last_action_date ?? a.application_date;
       return last != null && (ctx.asOfDay - last) > 15;
     });

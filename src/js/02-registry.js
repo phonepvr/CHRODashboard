@@ -120,8 +120,8 @@ defineMetric({
 defineMetric({
   key: 'attr_annualised', label: 'Annualised attrition', tab: 'overview',
   group: 'Workforce', unit: '%', direction: 'lower', scorecard: 'HR Operations',
-  formulaText: '(Exits in period ÷ average headcount over period) × (12 ÷ months in period) × 100',
-  inputs: [{ dataset: 'exits', columns: ['Employee ID', 'Exit Date'] },
+  formulaText: '(Exits in period ÷ average headcount over period) × (12 ÷ months in period) × 100\n(Exit Type = Retirement excluded)',
+  inputs: [{ dataset: 'exits', columns: ['Employee ID', 'Exit Date', 'Exit Type'] },
            { dataset: 'employee_master', columns: ['Employee ID', 'Date of Joining', 'Employee Class'] }],
   caveat: 'Permanent roll; voluntary + involuntary exits; superannuation excluded.',
   compute: (m, ctx) => Compute.annualisedAttrition(m, ctx),

@@ -11,7 +11,7 @@ defineMetric({
   drill: (m, ctx) => {
     const latest = Compute.latestPanelMonth(m.cAtt, ctx);
     if (latest == null) return null;
-    const rows = m.cAtt.filter((r) => r.month === latest && Compute.inAsset(ctx, r.asset))
+    const rows = m.cAtt.filter((r) => r.month === latest && Compute.panelMatch(ctx, r))
       .sort((a, b) => (b.contract_headcount || 0) - (a.contract_headcount || 0));
     return {
       title: `Contract headcount by contractor — ${monthIdxToLabel(latest)}`,
@@ -29,7 +29,7 @@ defineMetric({
   inputs: [{ dataset: 'contract_attendance', columns: ['Contractor', 'Asset', 'Month', 'Man-days Deployed', 'Man-days Present'] }],
   compute: (m, ctx) => Compute.contractAttendancePct(m, ctx),
   spark: (m, ctx) => Compute.monthlySeries(m, ctx, (mi) => {
-    const rows = m.cAtt.filter((r) => r.month === mi && Compute.inAsset(ctx, r.asset));
+    const rows = m.cAtt.filter((r) => r.month === mi && Compute.panelMatch(ctx, r));
     const dep = rows.reduce((s, r) => s + (r.mandays_deployed || 0), 0);
     return dep ? rows.reduce((s, r) => s + (r.mandays_present || 0), 0) / dep * 100 : null;
   })

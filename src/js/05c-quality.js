@@ -8,7 +8,7 @@ const DataQuality = (() => {
   const DIMENSIONS = {
     completeness: 'Share of non-blank cells across all template columns (optional columns included).',
     validity: 'Share of rows free of type errors and missing required values (rows dropped by validation count against this).',
-    consistency: 'Share of cross-file references that resolve: exits→employees, applications→requisitions, succession→employees, learning/IDP/LMS→employees.',
+    consistency: 'Share of cross-file references that resolve: exits→employees, applications→requisitions, succession→employees, learning/IDP/LMS→employees, Function Plant→org units.',
     uniqueness: 'Share of rows free of duplicate primary keys.',
     timeliness: 'Monthly panels reach the as-of month; IDPs updated within 9 months.',
     conformity: 'Share of values conforming to the declared formats (dates DD-MM-YYYY, months MM-YYYY, Y/N flags, allowed enum values).'
@@ -70,6 +70,21 @@ const DataQuality = (() => {
       check(m.lms, (r) => r.employee_id, 'lms_usage.csv — Employee ID');
       check(m.succ.filter((s) => s.successor_id), (s) => s.successor_id, 'succession.csv — Successor Employee ID');
       check(m.apps, (a) => a.employee_id, 'internal_applications.csv — Applicant Employee ID');
+    }
+    if (m.has('org_units')) {
+      // every Function Plant should resolve in org_units — otherwise its rows fall to segment 'Unassigned'
+      const missing = new Map();
+      for (const rows of [m.emps, m.reqs, m.positionRows, m.hcBudget]) {
+        for (const r of rows) {
+          if (r.function_plant == null) continue;
+          refs++;
+          if (!Compute.orgOf(m, r.function_plant)) { broken++; missing.set(r.function_plant, (missing.get(r.function_plant) || 0) + 1); }
+        }
+      }
+      if (missing.size) {
+        const rows = [...missing.values()].reduce((a, b) => a + b, 0);
+        issues.push({ severity: 'medium', where: 'org_units.csv — Function Plant', what: `${missing.size} Function Plant value${missing.size > 1 ? 's' : ''} (${[...missing.keys()].slice(0, 3).join(', ')}) not in org_units.csv — ${rows} row${rows > 1 ? 's' : ''} resolve to segment “Unassigned” unless they carry a Business Segment.` });
+      }
     }
     if (m.has('internal_applications') && m.has('requisitions')) {
       let miss = 0;

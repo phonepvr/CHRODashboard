@@ -1,6 +1,9 @@
 /* Compute layer — joins the parsed datasets into one model, applies the
-   asset/grade-band/period context, evaluates registry metrics with memoisation.
-   Pure in-memory; rebuilt whenever data or filters change. */
+   asset/grade-band/segment/function/period context, evaluates registry metrics
+   with memoisation. Pure in-memory; rebuilt whenever data or filters change.
+   Segment (D7): employee column → org_units by Function Plant → 'Unassigned'
+   (Unassigned rows count only under All). Retirements are exits but never
+   attrition: every attrition rate/count excludes them; exit drills show them. */
 
 const Compute = (() => {
 
@@ -18,13 +21,35 @@ const Compute = (() => {
 
   const SENIOR_GRADES = new Set(['AGM', 'DGM', 'GM', 'VP', 'SVP', 'ED']);
 
+  const plantKey = (p) => String(p).trim().toLowerCase();
+  const SEG_DATASETS = ['employee_master', 'requisitions', 'positions', 'hc_budget', 'production_safety',
+    'contract_attendance', 'contract_compliance', 'wellbeing', 'statutory_compliance'];
+  // datasets that inherit their segment from another one
+  const SEG_VIA = { internal_applications: 'requisitions', candidate_pipeline: 'requisitions', org_units: null, targets: null };
+
   function build() {
     if (model && modelVersion === App.state.dataVersion) return model;
     memo.clear();
-    const emps = ds('employee_master') || [];
+    const orgUnits = ds('org_units') || [];
+    const orgByPlant = new Map();
+    for (const o of orgUnits) if (o.function_plant != null) orgByPlant.set(plantKey(o.function_plant), o);
+    const orgSeg = (plant) => (plant != null ? orgByPlant.get(plantKey(plant))?.business_segment : null);
+    const segAvail = new Set();
+    const tagSeg = (id, rows, viaOrg) => {
+      for (const r of rows) {
+        r.__seg = r.business_segment || (viaOrg ? orgSeg(r.function_plant) : null) || 'Unassigned';
+        if (r.__seg !== 'Unassigned') segAvail.add(id);
+      }
+      return rows;
+    };
+
+    const emps = tagSeg('employee_master', ds('employee_master') || [], true);
     const exits = ds('exits') || [];
     const exitByEmp = new Map();
-    for (const x of exits) if (x.employee_id != null && x.exit_date != null) {
+    for (const x of exits) {
+      x.__mi = x.exit_date != null ? dayToMonthIdx(x.exit_date) : null;
+      x.__attr = x.exit_type !== 'Retirement'; // counts towards attrition
+      if (x.employee_id == null || x.exit_date == null) continue;
       const prev = exitByEmp.get(x.employee_id);
       if (!prev || x.exit_date > prev.exit_date) exitByEmp.set(x.employee_id, x);
     }
@@ -35,6 +60,8 @@ const Compute = (() => {
     const uniqueEmps = [];
     for (const e of emps) {
       e.__exit = exitByEmp.get(e.employee_id) || null;
+      e.__exitDay = e.__exit ? e.__exit.exit_date : Infinity;
+      e.__dojMi = e.doj != null ? dayToMonthIdx(e.doj) : null;
       if (e.employee_id != null && empById.has(e.employee_id)) continue;
       if (e.employee_id != null) empById.set(e.employee_id, e);
       uniqueEmps.push(e);
@@ -57,7 +84,7 @@ const Compute = (() => {
     const succ = ds('succession') || [];
     const successorIds = new Set(succ.map((s) => s.successor_id).filter(Boolean));
 
-    const reqs = ds('requisitions') || [];
+    const reqs = tagSeg('requisitions', ds('requisitions') || [], true);
     const reqById = new Map(reqs.map((r) => [r.requisition_id, r]));
 
     model = {
@@ -68,12 +95,20 @@ const Compute = (() => {
       idp: ds('idp_status') || [],
       lms: ds('lms_usage') || [],
       succ, successorIds,
-      prod: ds('production_safety') || [],
-      cAtt: ds('contract_attendance') || [],
-      cComp: ds('contract_compliance') || [],
+      prod: tagSeg('production_safety', ds('production_safety') || [], false),
+      cAtt: tagSeg('contract_attendance', ds('contract_attendance') || [], false),
+      cComp: tagSeg('contract_compliance', ds('contract_compliance') || [], false),
       pms: ds('pms_status') || [],
       recog: ds('recognition') || [],
-      well: ds('wellbeing') || [],
+      well: tagSeg('wellbeing', ds('wellbeing') || [], false),
+      orgUnits, orgByPlant,
+      hcBudget: tagSeg('hc_budget', ds('hc_budget') || [], true),
+      positionRows: tagSeg('positions', ds('positions') || [], true),
+      movements: ds('employee_movements') || [],
+      candidates: ds('candidate_pipeline') || [],
+      absence: ds('absence_monthly') || [],
+      statutory: tagSeg('statutory_compliance', ds('statutory_compliance') || [], false),
+      segAvail,
       targets,
       has, SENIOR_GRADES
     };
@@ -84,10 +119,13 @@ const Compute = (() => {
   /* ---------- context ---------- */
 
   function ctxNow(overrides) {
-    const months = App.state.filters.periodMonths;
+    const f = App.state.filters;
+    const months = f.periodMonths;
     const base = {
-      asset: App.state.filters.asset,        // 'Group' | asset name
-      band: App.state.filters.band,          // 'All' | grade band
+      asset: f.asset,                        // 'Group' | asset name
+      band: f.band,                          // 'All' | grade band
+      segment: f.segment || 'All',           // 'All' | business segment
+      fn: f.fn || 'All',                     // 'All' | function (persona function scope)
       periodMonths: months,
       asOfDay: AS_OF_DAY,
       endMonth: AS_OF_MONTH,
@@ -105,26 +143,45 @@ const Compute = (() => {
 
   const inAsset = (ctx, asset) => ctx.asset === 'Group' || asset === ctx.asset;
   const inBand = (ctx, band) => ctx.band === 'All' || band === ctx.band;
+  const inSeg = (ctx, seg) => !ctx.segment || ctx.segment === 'All' || seg === ctx.segment;
+  const inFn = (ctx, fn) => !ctx.fn || ctx.fn === 'All' || fn === ctx.fn;
+  // true when no filter narrows the scope — unattributable rows count only then
+  const isUnscoped = (ctx) => ctx.asset === 'Group' && (ctx.band == null || ctx.band === 'All') && inSeg(ctx, null) && inFn(ctx, null);
+
+  // Resolved business segment of any tagged row (employee, requisition, position, panel…)
+  const segOf = (r) => (r && r.__seg) || 'Unassigned';
+  // org_units row for a Function Plant (Function, Segment, Company, MC Member) or null
+  const orgOf = (m, plant) => (plant != null ? m.orgByPlant.get(plantKey(plant)) || null : null);
 
   function empMatch(e, ctx) {
-    return inAsset(ctx, e.asset) && inBand(ctx, e.grade_band);
+    return inAsset(ctx, e.asset) && inBand(ctx, e.grade_band) && inSeg(ctx, e.__seg) && inFn(ctx, e.function);
   }
+  // org-level match (no grade band) — requisitions, positions, budget rows, successions
+  const orgMatch = (ctx, r) => inAsset(ctx, r.asset) && inSeg(ctx, segOf(r)) && inFn(ctx, r.function);
+  const reqMatch = orgMatch;
+  // asset-month panels carry no function; a panel without a Segment column resolves 'Unassigned'
+  const panelMatch = (ctx, r) => inAsset(ctx, r.asset) && inSeg(ctx, segOf(r));
+  // still open = no closed date and not dropped/closed by status
+  const reqOpen = (r) => r.closed_date == null && r.req_status !== 'Dropped' && r.req_status !== 'Closed';
 
   function activesAt(m, ctx, klass, day) {
-    return m.emps.filter((e) =>
-      (klass == null || e.employee_class === klass) &&
-      empMatch(e, ctx) &&
-      e.doj != null && e.doj <= day &&
-      (!e.__exit || e.__exit.exit_date > day));
+    const out = [];
+    for (const e of m.emps) {
+      if (e.doj == null || e.doj > day || e.__exitDay <= day) continue;
+      if (klass != null && e.employee_class !== klass) continue;
+      if (empMatch(e, ctx)) out.push(e);
+    }
+    return out;
   }
   const actives = (m, ctx, klass) => activesAt(m, ctx, klass, ctx.asOfDay);
 
-  // exits inside [startMonth, endMonth] (klass filter optional)
-  function exitsInPeriod(m, ctx, klass) {
+  // exits inside [startMonth, endMonth] (klass filter optional). Retirements are
+  // left out unless asked for — every attrition figure is built on this.
+  function exitsInPeriod(m, ctx, klass, includeRetirements = false) {
     return m.exits.filter((x) => {
-      if (x.exit_date == null || !x.__emp) return false;
-      const mi = dayToMonthIdx(x.exit_date);
-      if (mi < ctx.startMonth || mi > ctx.endMonth) return false;
+      if (x.__mi == null || !x.__emp) return false;
+      if (x.__mi < ctx.startMonth || x.__mi > ctx.endMonth) return false;
+      if (!includeRetirements && !x.__attr) return false;
       if (klass != null && x.__emp.employee_class !== klass) return false;
       return empMatch(x.__emp, ctx);
     });
@@ -134,7 +191,7 @@ const Compute = (() => {
     const from = monthEndDay(ctx.endMonth - months) + 1;
     return m.emps.filter((e) =>
       (klass == null || e.employee_class === klass) &&
-      empMatch(e, ctx) && e.doj != null && e.doj >= from && e.doj <= ctx.asOfDay);
+      e.doj != null && e.doj >= from && e.doj <= ctx.asOfDay && empMatch(e, ctx));
   }
 
   /* ---------- shared computations ---------- */
@@ -163,9 +220,8 @@ const Compute = (() => {
   function monthAttritionRate(m, ctx, mi) {
     const hc = activesAt(m, ctx, 'Permanent', monthEndDay(mi)).length;
     if (!hc) return null;
-    const n = m.exits.filter((x) => x.exit_date != null && x.__emp &&
-      x.__emp.employee_class === 'Permanent' && empMatch(x.__emp, ctx) &&
-      dayToMonthIdx(x.exit_date) === mi).length;
+    const n = m.exits.filter((x) => x.__mi === mi && x.__attr && x.__emp &&
+      x.__emp.employee_class === 'Permanent' && empMatch(x.__emp, ctx)).length;
     return n / hc * 12 * 100;
   }
 
@@ -181,26 +237,78 @@ const Compute = (() => {
   function monthAttritionRateWhere(m, ctx, mi, pred) {
     const hc = activesAt(m, ctx, 'Permanent', monthEndDay(mi)).length;
     if (!hc) return null;
-    const n = m.exits.filter((x) => x.exit_date != null && x.__emp &&
-      x.__emp.employee_class === 'Permanent' && empMatch(x.__emp, ctx) &&
-      dayToMonthIdx(x.exit_date) === mi && pred(x)).length;
+    const n = m.exits.filter((x) => x.__mi === mi && x.__attr && x.__emp &&
+      x.__emp.employee_class === 'Permanent' && empMatch(x.__emp, ctx) && pred(x)).length;
     return n / hc * 12 * 100;
   }
 
   // joins in a given month (for the hiring trend), optional class filter
   function joinsInMonth(m, ctx, mi, klass) {
-    return m.emps.filter((e) =>
-      (klass == null || e.employee_class === klass) &&
-      empMatch(e, ctx) && e.doj != null && dayToMonthIdx(e.doj) === mi).length;
+    let n = 0;
+    for (const e of m.emps) {
+      if (e.__dojMi === mi && (klass == null || e.employee_class === klass) && empMatch(e, ctx)) n++;
+    }
+    return n;
   }
 
-  // fiscal YTD (Apr–as-of) annualised
+  // first day of the fiscal year containing the context's end month (CONFIG.fyStartMonth)
+  const fyStartDay = (ctx) => monthEndDay(fyStartMonthIdx(ctx.endMonth) - 1) + 1;
+
+  // fiscal YTD (FY start – as-of) annualised
   function ytdAttrition(m, ctx) {
-    const y = Math.floor(ctx.endMonth / 12), m0 = ctx.endMonth % 12;
-    const fyStart = (m0 >= 3) ? y * 12 + 3 : (y - 1) * 12 + 3; // April
+    const fyStart = fyStartMonthIdx(ctx.endMonth);
     const months = ctx.endMonth - fyStart + 1;
     const c = { ...ctx, startMonth: fyStart, periodMonths: months };
     return annualisedAttrition(m, c);
+  }
+
+  /* ---------- generic cuts ---------- */
+
+  const BLANK = '(blank)';
+  function orderKeys(keys, order) {
+    if (!order) return keys;
+    const pos = new Map(order.map((k, i) => [k, i]));
+    return keys.slice().sort((a, b) => (pos.has(a) ? pos.get(a) : 1e9) - (pos.has(b) ? pos.get(b) : 1e9));
+  }
+
+  // rows → [{key, n}] (blank keys → '(blank)'); ordered by `order` when given,
+  // else by count descending
+  function countBy(rows, keyFn, order) {
+    const counts = new Map();
+    for (const r of rows) {
+      const k = keyFn(r) ?? BLANK;
+      counts.set(k, (counts.get(k) || 0) + 1);
+    }
+    const keys = order ? orderKeys([...counts.keys()], order) : [...counts.keys()].sort((a, b) => counts.get(b) - counts.get(a));
+    return keys.map((key) => ({ key, n: counts.get(key) }));
+  }
+
+  // Annualised attrition rate by any dimension:
+  //   exits(key) ÷ average headcount(key) × (12 ÷ months) × 100 — per key.
+  // dimFn(e, day) → key, evaluated at each month-end for headcount and at the
+  // exit date for exits, so time-varying cuts (tenure) land in the right bucket.
+  // Retirements are excluded (via exitsInPeriod); `pred` narrows exits further.
+  function rateBy(m, ctx, dimFn, opts = {}) {
+    const klass = opts.klass === undefined ? 'Permanent' : opts.klass;
+    const hc = new Map(), ex = new Map();
+    for (let mi = ctx.startMonth; mi <= ctx.endMonth; mi++) {
+      const day = monthEndDay(mi);
+      for (const e of activesAt(m, ctx, klass, day)) {
+        const k = dimFn(e, day) ?? BLANK;
+        hc.set(k, (hc.get(k) || 0) + 1);
+      }
+    }
+    for (const x of exitsInPeriod(m, ctx, klass)) {
+      if (opts.pred && !opts.pred(x)) continue;
+      const k = dimFn(x.__emp, x.exit_date) ?? BLANK;
+      ex.set(k, (ex.get(k) || 0) + 1);
+    }
+    const months = ctx.periodMonths;
+    return orderKeys([...new Set([...hc.keys(), ...ex.keys()])], opts.order).map((key) => {
+      const avgHc = (hc.get(key) || 0) / months;
+      const exits = ex.get(key) || 0;
+      return { key, exits, avgHc, rate: avgHc ? exits / avgHc * (12 / months) * 100 : null };
+    });
   }
 
   /* ---------- cohorts ---------- */
@@ -242,11 +350,12 @@ const Compute = (() => {
   /* ---------- succession / positions ---------- */
 
   function succMatch(m, ctx, s) {
-    if (ctx.asset === 'Group') return true;
+    const all = ctx.asset === 'Group' && inSeg(ctx, null) && inFn(ctx, null);
+    if (all) return true;
     const inc = s.incumbent_id ? m.empById.get(s.incumbent_id) : null;
-    if (inc) return inc.asset === ctx.asset;
+    if (inc) return orgMatch(ctx, inc);
     const suc = s.successor_id ? m.empById.get(s.successor_id) : null;
-    if (suc) return suc.asset === ctx.asset;
+    if (suc) return orgMatch(ctx, suc);
     return false; // unattributable rows only count at Group level
   }
 
@@ -279,7 +388,7 @@ const Compute = (() => {
     return m.reqs.filter((r) => {
       if (r.closed_date == null) return false;
       const mi = dayToMonthIdx(r.closed_date);
-      return mi >= ctx.startMonth && mi <= ctx.endMonth && inAsset(ctx, r.asset) &&
+      return mi >= ctx.startMonth && mi <= ctx.endMonth && reqMatch(ctx, r) &&
         (!seniorOnly || seniorReq(m, r));
     });
   }
@@ -288,7 +397,7 @@ const Compute = (() => {
 
   function latestPanelMonth(rows, ctx) {
     let latest = null;
-    for (const r of rows) if (r.month != null && inAsset(ctx, r.asset)) latest = Math.max(latest ?? -Infinity, r.month);
+    for (const r of rows) if (r.month != null && panelMatch(ctx, r)) latest = Math.max(latest ?? -Infinity, r.month);
     return latest;
   }
 
@@ -296,7 +405,7 @@ const Compute = (() => {
     if (!m.has('contract_attendance')) return null;
     const latest = latestPanelMonth(m.cAtt, ctx);
     if (latest == null) return null;
-    return m.cAtt.filter((r) => r.month === latest && inAsset(ctx, r.asset))
+    return m.cAtt.filter((r) => r.month === latest && panelMatch(ctx, r))
       .reduce((s, r) => s + (r.contract_headcount || 0), 0);
   }
 
@@ -307,14 +416,14 @@ const Compute = (() => {
     if (!m.has('contract_attendance')) return null;
     const byMonth = new Map();
     for (const r of m.cAtt) {
-      if (r.month == null || r.month < ctx.startMonth || r.month > ctx.endMonth || !inAsset(ctx, r.asset)) continue;
+      if (r.month == null || r.month < ctx.startMonth || r.month > ctx.endMonth || !panelMatch(ctx, r)) continue;
       byMonth.set(r.month, (byMonth.get(r.month) || 0) + (r.contract_headcount || 0));
     }
     return byMonth.size ? mean([...byMonth.values()]) : null;
   }
 
   function panelRowsInPeriod(rows, ctx) {
-    return rows.filter((r) => r.month != null && r.month >= ctx.startMonth && r.month <= ctx.endMonth && inAsset(ctx, r.asset));
+    return rows.filter((r) => r.month != null && r.month >= ctx.startMonth && r.month <= ctx.endMonth && panelMatch(ctx, r));
   }
 
   function contractAttendancePct(m, ctx) {
@@ -356,7 +465,7 @@ const Compute = (() => {
     if (!m.has('pms_status')) return null;
     const rows = m.pms.filter((r) => {
       const e = m.empById.get(r.employee_id);
-      return e ? empMatch(e, ctx) : ctx.asset === 'Group';
+      return e ? empMatch(e, ctx) : isUnscoped(ctx);
     });
     if (!rows.length) return null;
     return rows.filter((r) => r[key]).length / rows.length * 100;
@@ -413,6 +522,23 @@ const Compute = (() => {
     return entry.inputs.every((i) => has(i.dataset));
   }
 
+  // Under a specific segment, name every loaded input that cannot be split by
+  // segment (its rows all resolve 'Unassigned' and are therefore excluded).
+  function segmentNote(m, entry, ctx) {
+    if (inSeg(ctx, null)) return null;
+    const ids = new Set();
+    for (const i of entry.inputs) {
+      const via = i.dataset in SEG_VIA ? SEG_VIA[i.dataset]
+        : SEG_DATASETS.includes(i.dataset) ? i.dataset
+        : SCHEMAS[i.dataset]?.columns.some((c) => c.key === 'employee_id') ? 'employee_master' : null;
+      if (via && has(via) && !m.segAvail.has(via)) ids.add(via);
+    }
+    return ids.size ? `Business segment not available in ${[...ids].map((d) => d + '.csv').join(', ')} — those rows are excluded under “${ctx.segment}”` : null;
+  }
+
+  // every ctx field, so override calls on any filter never collide
+  const ctxKey = (ctx) => Object.keys(ctx).sort().map((k) => k + '=' + ctx[k]).join('&');
+
   function metric(key, overrides) {
     const entry = REG_BY_KEY.get(key);
     if (!entry) return { entry: null, value: null, available: false };
@@ -421,7 +547,7 @@ const Compute = (() => {
     // memo key must therefore distinguish the two, or an override call whose ctx
     // equals the base ctx (e.g. the exec summary at the current asset) would cache
     // a spark-less entry that the tile then reads — dropping the trend line.
-    const mk = key + '|' + ctx.asset + '|' + ctx.band + '|' + ctx.startMonth + '-' + ctx.endMonth + '|' + App.state.dataVersion + (overrides ? '|ov' : '|base');
+    const mk = key + '|' + ctxKey(ctx) + '|' + App.state.dataVersion + (overrides ? '|ov' : '|base');
     if (memo.has(mk)) return memo.get(mk);
     const m = build();
     const available = metricAvailable(entry);
@@ -429,6 +555,8 @@ const Compute = (() => {
     if (available) {
       try { value = entry.compute(m, ctx); } catch (e) { value = null; quality = 'Computation failed: ' + e.message; }
       if (entry.quality && quality == null) { try { quality = entry.quality(m, ctx); } catch { /* noop */ } }
+      const segNote = segmentNote(m, entry, ctx);
+      if (segNote) quality = quality ? quality + ' · ' + segNote : segNote;
       if (entry.spark && !overrides) { try { spark = entry.spark(m, ctx); } catch { spark = null; } }
     }
     const target = m.targets.get(key) || null;
@@ -466,7 +594,7 @@ const Compute = (() => {
   }
 
   function drillExits(m, ctx) {
-    const xs = exitsInPeriod(m, ctx, null).sort((a, b) => b.exit_date - a.exit_date).slice(0, 200);
+    const xs = exitsInPeriod(m, ctx, null, true).sort((a, b) => b.exit_date - a.exit_date).slice(0, 200);
     return {
       title: `Exits in period (${xs.length})`,
       columns: ['Employee', 'Asset', 'Band', 'Exit date', 'Type', 'Regretted', 'Reason'],
@@ -477,7 +605,8 @@ const Compute = (() => {
   return {
     build, ctxNow, metric, metricAvailable, priorValue, groupValue,
     actives, activesAt, exitsInPeriod, joinsInWindow, monthlySeries, avgHeadcount,
-    annualisedAttrition, monthAttritionRate, ytdAttrition,
+    annualisedAttrition, monthAttritionRate, ytdAttrition, fyStartDay,
+    countBy, rateBy, segOf, orgOf, reqOpen,
     annualisedAttritionWhere, monthAttritionRateWhere, joinsInMonth,
     pmsCompletion, recognitionCoverage, wellbeingSum,
     cohortFilter, learningCoverage, learningDaysPerEmp,
@@ -486,7 +615,7 @@ const Compute = (() => {
     panelRowsInPeriod, latestPanelMonth, prodSum,
     blankShareNote, blankExitReasonNote, staleIdpNote,
     drillHeadcount, drillExits,
-    empMatch, inAsset, inBand,
+    empMatch, orgMatch, reqMatch, panelMatch, isUnscoped, inAsset, inBand, inSeg, inFn,
     invalidate() { memo.clear(); }
   };
 })();

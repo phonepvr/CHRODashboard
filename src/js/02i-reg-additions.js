@@ -15,7 +15,7 @@ function learnRows12m(m, ctx) {
   return m.learning.filter((l) => {
     if (l.start_date == null || l.start_date < from || l.start_date > ctx.asOfDay) return false;
     const e = m.empById.get(l.employee_id);
-    if (!e) return ctx.asset === 'Group' && ctx.band === 'All';
+    if (!e) return Compute.isUnscoped(ctx);
     return Compute.empMatch(e, ctx);
   });
 }
@@ -72,8 +72,8 @@ defineMetric({
 defineMetric({
   key: 'senior_exits', label: 'Senior exits in period', tab: 'attrition',
   group: 'Cohort attrition', unit: '', decimals: 0, direction: 'lower',
-  formulaText: 'Exits in period at senior grades (AGM+ or VP & above) — count',
-  inputs: [{ dataset: 'exits', columns: ['Employee ID', 'Exit Date', 'Exit Reason'] },
+  formulaText: 'Exits in period at senior grades (AGM+ or VP & above) — count\n(Exit Type = Retirement excluded)',
+  inputs: [{ dataset: 'exits', columns: ['Employee ID', 'Exit Date', 'Exit Type', 'Exit Reason'] },
            { dataset: 'employee_master', columns: ['Employee ID', 'Grade', 'Grade Band'] }],
   caveat: 'The drill-down is the "key senior exits" table with stated reasons.',
   compute: (m, ctx) => Compute.exitsInPeriod(m, ctx, null).filter((x) => seniorEmp(m, x.__emp)).length,
@@ -144,7 +144,7 @@ defineMetric({
     return m.recog.filter((r) => {
       if (r.award_date == null || r.award_date < from || r.award_date > ctx.asOfDay) return false;
       const e = m.empById.get(r.employee_id);
-      if (!e) return ctx.asset === 'Group' && ctx.band === 'All';
+      if (!e) return Compute.isUnscoped(ctx);
       return Compute.empMatch(e, ctx);
     }).length;
   },
@@ -156,7 +156,7 @@ defineMetric({
       if (r.award_date == null || r.award_date < from || r.award_date > ctx.asOfDay) continue;
       const e = m.empById.get(r.employee_id);
       if (e && !Compute.empMatch(e, ctx)) continue;
-      if (!e && !(ctx.asset === 'Group' && ctx.band === 'All')) continue;
+      if (!e && !Compute.isUnscoped(ctx)) continue;
       const k = r.award_name || '(unnamed)';
       byName.set(k, (byName.get(k) || 0) + 1);
       if (!uniq.has(k)) uniq.set(k, new Set());
