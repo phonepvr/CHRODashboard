@@ -145,8 +145,9 @@ const ExecSummary = (() => {
     const goods = points.filter((p) => p.type === 'good');
     // keep it scannable: max 6 points, watches first, always ≥1 good if one exists
     const chosen = [...watches.slice(0, 4), ...goods.slice(0, 2), ...points.filter((p) => p.type === 'neutral')].slice(0, 6);
-    const seg = Compute.ctxNow().segment;
-    const name = seg && seg !== 'All' ? `${asset} · ${seg}` : asset;
+    // name the whole scope the figures cover (a function-bound HRBP is not the asset)
+    const c = Compute.ctxNow();
+    const name = [asset, c.segment !== 'All' && c.segment, c.fn !== 'All' && c.fn].filter(Boolean).join(' · ');
     const verdict =
       watches.length === 0 ? `${name}: steady period — no rule-based flags raised.` :
       watches.length <= 2 ? `${name}: broadly stable, ${watches.length} area${watches.length > 1 ? 's' : ''} to watch.` :

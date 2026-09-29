@@ -44,6 +44,7 @@ const AccessMatrix = (() => {
     ['Tiles', 'Restricted → lock + “Restricted for …”, no value; Aggregate → value, no drill', 'API never returns a Hidden metric; the client renders only what it receives'],
     ['Charts & tooltips', 'A restricted card drops its body, so no mark, tooltip or PNG exists; peer assets are never drawn for a locked persona', 'Chart series served per scope; no peer-asset series for asset-bound roles'],
     ['“i” popover', 'Formula and inputs always (definitions are public); value-derived quality notes withheld', 'Same — definitions are not sensitive'],
+    ['Methodology (tab + print appendix)', 'Lists every metric definition, including Restricted ones, for every persona — formulas and inputs only, never a value', 'Same — the definitions catalogue carries no data'],
     ['Drill-downs', 'Only Full metrics drill; identifiers pseudonymised (masked) or the table withheld (none)', 'Drill endpoints authorised per persona; HMAC pseudonyms server-side; each open logged'],
     ['Exports (CSV / PNG)', 'Metric CSV omits Restricted metrics; drill CSV reuses the masked rows', 'Server-generated, watermarked (user, time, persona), row-capped, logged'],
     ['Print pack', 'Only in-scope units and visible pages; restricted tiles print restricted', 'Server-rendered per persona; watermarked; logged'],

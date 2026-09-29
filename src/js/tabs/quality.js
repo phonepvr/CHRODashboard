@@ -15,10 +15,13 @@ TabRenderers.quality = (panel) => {
         i.where, i.what])
     : [];
 
-  // the mockup's DQ is dataset-wide; production must scope it (Access Matrix)
-  const scopeNote = Access.persona().scope === 'all' ? ''
+  // the mockup's DQ is dataset-wide; production must scope it (Access Matrix).
+  // Say so whenever a persona or the Asset / Business filter narrows the view.
+  const ctx = Compute.ctxNow();
+  const narrowed = [ctx.asset !== 'Group' && ctx.asset, ctx.segment !== 'All' && 'Business: ' + ctx.segment].filter(Boolean);
+  const scopeNote = Access.persona().scope === 'all' && !narrowed.length ? ''
     : `<div class="empty-note" style="margin-bottom:10px">Data quality is assessed on the whole loaded dataset —
-      it is not narrowed to ${esc(Access.label())}. Production DQ must be scope-aware.</div>`;
+      it is not narrowed to ${esc(Access.persona().scope === 'all' ? narrowed.join(' · ') : Access.label())}. Production DQ must be scope-aware.</div>`;
   panel.innerHTML = `${scopeNote}
     <div class="section-head"><h2>Data quality score</h2>
       <span class="sub">computed on the active dataset (${App.state.mode === 'mock' ? 'illustrative' : 'loaded files'})</span></div>

@@ -68,7 +68,7 @@ defineMetric({
 });
 
 defineMetric({
-  key: 'tt_count', label: 'Top Talent (TT)', tab: 'overview',
+  key: 'tt_count', label: 'Top Talent (TT)', tab: 'overview', access: 'talent',
   group: 'Workforce', unit: '', decimals: 0, direction: null,
   formulaText: 'Active permanent employees with TT Flag = Y',
   inputs: [{ dataset: 'employee_master', columns: ['Employee ID', 'TT Flag'] }],
@@ -76,7 +76,7 @@ defineMetric({
 });
 
 defineMetric({
-  key: 'ct_count', label: 'Critical Talent (CT)', tab: 'overview',
+  key: 'ct_count', label: 'Critical Talent (CT)', tab: 'overview', access: 'talent',
   group: 'Workforce', unit: '', decimals: 0, direction: null,
   formulaText: 'Active permanent employees with CT Flag = Y',
   inputs: [{ dataset: 'employee_master', columns: ['Employee ID', 'CT Flag'] }],
@@ -84,7 +84,7 @@ defineMetric({
 });
 
 defineMetric({
-  key: 'cp_count', label: 'Critical Positions (CP)', tab: 'overview',
+  key: 'cp_count', label: 'Critical Positions (CP)', tab: 'overview', access: 'talent',
   group: 'Workforce', unit: '', decimals: 0, direction: null,
   formulaText: 'Positions in the succession file with Position Level = CP\n(falls back to employees flagged Critical Position when succession.csv is absent)',
   inputs: [{ dataset: 'succession', columns: ['Position ID', 'Position Level'] }],

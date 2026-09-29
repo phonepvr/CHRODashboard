@@ -170,10 +170,11 @@ const Exports = (() => {
 
   function exportTabChartsPNG() {
     const panel = document.getElementById('panel-' + App.state.activeTab);
-    const cards = [...panel.querySelectorAll('.card')];
+    // a restricted card's only SVG is its lock icon — never export it
+    const cards = [...panel.querySelectorAll('.card:not(.is-restricted)')];
     let n = 0;
     for (const card of cards) {
-      const svg = card.querySelector('svg');
+      const svg = card.querySelector('svg:not(.lock-ico)');
       if (!svg) continue;
       const title = (card.querySelector('.card-title')?.textContent || 'chart').trim().replace(/\W+/g, '-').toLowerCase();
       setTimeout(() => svgToPng(svg, `amns-${title}.png`), n * 350);

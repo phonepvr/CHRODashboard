@@ -126,7 +126,7 @@ const PrintPack = (() => {
   function unitPage(asset) {
     return withScope(asset, () => `<section class="print-page">
       <div class="section-head"><h2 style="font-size:14pt">${esc(asset)} — ${asset === 'Group' ? 'Group executive summary' : 'Asset HR head summary'}</h2>
-        <span class="sub">${esc(CONFIG.periodLabel)}${Compute.ctxNow().segment !== 'All' ? ' · Business: ' + esc(Compute.ctxNow().segment) : ''}</span></div>
+        <span class="sub">${esc(CONFIG.periodLabel)}${Compute.ctxNow().segment !== 'All' ? ' · Business: ' + esc(Compute.ctxNow().segment) : ''}${Compute.ctxNow().fn !== 'All' ? ' · Line function: ' + esc(Compute.ctxNow().fn) : ''}</span></div>
       ${summaryBlock(asset)}
       ${tilesBlock(ASSET_TILE_KEYS)}
       ${asset === 'Group' ? '' : assetCharts(asset)}
@@ -139,7 +139,8 @@ const PrintPack = (() => {
     const q = DataQuality.compute();
     return `<section class="print-page">
       <div class="section-head"><h2 style="font-size:14pt">Data quality</h2>
-        <span class="sub">transparent score — the method is printed with it${Access.persona().scope === 'all' ? '' : ' · dataset-wide, not narrowed to ' + esc(Access.label())}</span></div>
+        <span class="sub">transparent score — the method is printed with it${Access.persona().scope !== 'all' ? ' · dataset-wide, not narrowed to ' + esc(Access.label())
+          : Compute.ctxNow().segment !== 'All' ? ' · dataset-wide, not narrowed to Business: ' + esc(Compute.ctxNow().segment) : ''}</span></div>
       <div class="tile-grid pp-tiles">
         <div class="tile"><span class="tile-label">Overall</span>
           <span class="tile-value">${q.overall == null ? '—' : fmtNum(q.overall, 1) + '%'}</span></div>

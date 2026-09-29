@@ -128,6 +128,8 @@ table { border-collapse: collapse; }
   padding: 10px 16px 10px 20px;
   border-bottom: 2px solid var(--black);
   overflow: hidden;
+  flex-wrap: wrap;           /* persona chip labels vary: actions wrap, never clip */
+  row-gap: 8px;
 }
 .hdr-stroke {
   position: absolute;
@@ -140,7 +142,7 @@ table { border-collapse: collapse; }
 .hdr-wordmark .wm-mark { font-size: 18px; }
 .hdr-title { font-size: 17px; font-weight: 700; white-space: nowrap; }
 .hdr-title .at { color: var(--red); }
-.hdr-actions { margin-left: auto; display: flex; gap: 6px; }
+.hdr-actions { margin-left: auto; display: flex; flex-wrap: wrap; gap: 6px; }
 .hdr-actions .btn { white-space: nowrap; }
 
 .chip {
@@ -575,7 +577,6 @@ td.score-bad .score-pill { background: var(--red); color: var(--white); }
 /* ---------- responsive (tablet) ---------- */
 @media (max-width: 900px) {
   [role="tablist"] { flex-wrap: nowrap; min-width: max-content; }
-  .app-header { flex-wrap: wrap; }
   .gate-actions { grid-template-columns: 1fr; }
   .gate-title { font-size: 32px; }
   .hdr-title { font-size: 15px; }

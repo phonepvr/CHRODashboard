@@ -65,6 +65,14 @@ test.describe('Phase 8 — Core-B: grouped nav, segment filter, personas, access
     await expect(page.locator('#panel-attrition .card', { hasText: 'Total vs voluntary' })).toBeVisible();
     await page.click('#tab-contract');
     await expect(page.locator('#panel-contract .tile[data-key="contract_compliance_idx"]')).toBeVisible();
+    // the longer header (scope chip + persona chip) wraps instead of clipping its actions
+    await page.setViewportSize({ width: 1024, height: 900 });
+    await page.evaluate(() => App.setPersona('segment_head', { segment: 'Operations' }));
+    const clipped = await page.evaluate(() => {
+      const r = document.querySelector('.app-header').getBoundingClientRect().right;
+      return [...document.querySelectorAll('.hdr-actions .btn')].filter((b) => b.getBoundingClientRect().right > r + 0.5).map((b) => b.textContent);
+    });
+    expect(clipped).toEqual([]);
   });
 
   test('segment selector: recomputes, shows in header/footer chips and print footers', async ({ page }) => {
@@ -82,6 +90,9 @@ test.describe('Phase 8 — Core-B: grouped nav, segment filter, personas, access
     await expect(page.locator('#sel-seg')).toBeEnabled();
     await expect.poll(() => page.locator('#print-root .pp-footer').first().textContent(), { timeout: 10_000 })
       .toContain('Business: Projects');
+    // the dataset-wide Data Quality tab says it is not narrowed by the filter
+    await page.click('#tab-quality');
+    await expect(page.locator('#panel-quality')).toContainText('not narrowed to Business: Projects');
   });
 
   test('CHRO (default) sees everything; every metric is classified; every chart card declares access', async ({ page }) => {
@@ -191,6 +202,9 @@ test.describe('Phase 8 — Core-B: grouped nav, segment filter, personas, access
     await page.click('#tab-overview');
     await expect(page.locator('.tile[data-key="headcount_contract"]')).toContainText('line-function scope');
     await expect(page.locator('.tile[data-key="ltifr"]')).toHaveClass(/is-restricted/);
+    // the summary names the function its figures cover
+    const fn = await page.evaluate(() => Access.lockedFunction());
+    await expect(page.locator('.exec-band .exec-verdict').first()).toContainText(`Vizag · ${fn}:`);
   });
 
   test('PII: masked personas get stable pseudonyms in drills and drill CSV; "none" withholds person rows', async ({ page }) => {
@@ -250,9 +264,18 @@ test.describe('Phase 8 — Core-B: grouped nav, segment filter, personas, access
     expect(keys).toContain('headcount_close');
     expect(keys).toContain('mob_openings');
     expect(all.text).toContain('TA & Mobility COE');
-    // chart PNG export skips restricted cards: they hold no SVG
-    const svgInRestricted = await page.evaluate(() => document.querySelectorAll('.card.is-restricted svg').length);
-    expect(svgInRestricted).toBe(0);
+    expect(expected.hiddenKeys).toEqual(expect.arrayContaining(['tt_count', 'ct_count', 'cp_count']));   // talent pools
+    // chart PNG export skips restricted cards: their only SVG is the lock icon
+    const png = await page.evaluate(() => {
+      const panel = document.getElementById('panel-' + App.state.activeTab);
+      const before = Exports.exportTabChartsPNG();
+      panel.insertAdjacentHTML('beforeend', Charts.card({ title: 'Probe', infoKey: 'tt_stagnation', body: '<svg class="probe"></svg>' }));
+      const card = panel.lastElementChild;
+      const r = { restricted: card.classList.contains('is-restricted'), chartSvg: card.querySelectorAll('svg:not(.lock-ico)').length, added: Exports.exportTabChartsPNG() - before };
+      card.remove();
+      return r;
+    });
+    expect(png).toEqual({ restricted: true, chartSvg: 0, added: 0 });
   });
 
   test('switching persona re-renders everything and rebuilds the print pack', async ({ page }) => {
