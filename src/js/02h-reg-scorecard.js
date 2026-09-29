@@ -14,7 +14,7 @@ defineMetric({
 });
 
 defineMetric({
-  key: 'promo_coverage_2y', label: 'Promoted in last 2 yrs (AM+ bands)', tab: 'talent',
+  key: 'promo_coverage_2y', label: 'Promoted in last 2 yrs (AM+ bands)', tab: 'talent', access: 'perf',
   group: 'Hiring', unit: '%', direction: 'higher', scorecard: 'Performance & Rewards',
   formulaText: 'Active AM–GM and VP+ employees with a Last Promotion Date within 2 years\n÷ those with tenure ≥2 years × 100',
   inputs: [{ dataset: 'employee_master', columns: ['Employee ID', 'Grade Band', 'Last Promotion Date', 'Date of Joining'] }],
@@ -28,7 +28,7 @@ defineMetric({
 });
 
 defineMetric({
-  key: 'promo_recency_median', label: 'Median years since promotion (AM+)', tab: 'talent',
+  key: 'promo_recency_median', label: 'Median years since promotion (AM+)', tab: 'talent', access: 'perf',
   group: 'Hiring', unit: '', decimals: 1, direction: 'lower', scorecard: 'Performance & Rewards',
   formulaText: 'Median of (as-of − Last Promotion Date) in years, for AM–GM and VP+\nemployees who have ever been promoted',
   inputs: [{ dataset: 'employee_master', columns: ['Employee ID', 'Grade Band', 'Last Promotion Date'] }],

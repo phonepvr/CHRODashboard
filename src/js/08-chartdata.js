@@ -9,33 +9,42 @@ const ChartData = (() => {
     return out;
   }
 
-  // one line series per asset (+ Group), selected asset emphasised
+  // one line series per asset (+ Group), selected asset emphasised. Only the
+  // persona's chart scopes are drawn — peer assets never reach a locked persona.
   function assetLines(ctx, valueAt /* (assetName|'Group', mi, day) -> v */) {
     const months = monthsAxis(ctx);
+    const scopes = Access.chartScopes();
     const series = [];
     let ctxToggle = 0;
-    for (const a of CONFIG.assets) {
+    for (const a of CONFIG.assets.filter((x) => scopes.includes(x))) {
       const role = a === ctx.asset ? 'focus' : (ctxToggle++ % 2 === 0 ? 'ctx1' : 'ctx2');
       series.push({ label: a, role, values: months.map((mi) => valueAt(a, mi, monthEndDay(mi))) });
     }
-    series.push({ label: 'Group', role: ctx.asset === 'Group' ? 'focus' : 'group', values: months.map((mi) => valueAt('Group', mi, monthEndDay(mi))) });
+    if (scopes.includes('Group')) {
+      series.push({ label: 'Group', role: ctx.asset === 'Group' ? 'focus' : 'group', values: months.map((mi) => valueAt('Group', mi, monthEndDay(mi))) });
+    }
     return { months, series };
   }
 
   // horizontal bars: one per asset, current metric value; click cross-filters
   function assetBars(key, fmt) {
-    const items = CONFIG.assets.map((a) => {
+    const focus = Compute.ctxNow().asset;
+    const scopes = Access.chartScopes();
+    const items = CONFIG.assets.filter((a) => scopes.includes(a)).map((a) => {
       const res = Compute.metric(key, { asset: a });
       return {
         label: a,
         value: res.value,
-        role: a === App.state.filters.asset ? 'focus' : undefined,
-        tip: `${a}: ${res.value == null ? 'no data' : (fmt || ((v) => fmtNum(v, 1)))(res.value)}\nClick to focus ${a}`,
-        setAsset: a
+        role: a === focus ? 'focus' : undefined,
+        tip: `${a}: ${res.value == null ? 'no data' : (fmt || ((v) => fmtNum(v, 1)))(res.value)}${Access.canFocusAsset(a) ? '\nClick to focus ' + a : ''}`,
+        setAsset: Access.lockedAsset() ? null : a
       };
     });
-    const g = Compute.metric(key, { asset: 'Group' });
-    items.push({ label: 'Group', value: g.value, role: App.state.filters.asset === 'Group' ? 'focus' : undefined, setAsset: 'Group', tip: 'Group (all assets)\nClick to reset focus' });
+    if (scopes.includes('Group')) {
+      const g = Compute.metric(key, { asset: 'Group' });
+      const locked = !!Access.lockedAsset();
+      items.push({ label: 'Group', value: g.value, role: focus === 'Group' ? 'focus' : undefined, setAsset: locked ? null : 'Group', tip: locked ? 'Group (benchmark)' : 'Group (all assets)\nClick to reset focus' });
+    }
     return items;
   }
 

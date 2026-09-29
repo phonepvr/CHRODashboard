@@ -12,6 +12,10 @@
      formulaText, inputs: [{dataset, columns:[…]}], caveat,
      cohort: null | 'TT' | …           (display annotation only)
      source: null | 'SCRUM' | 'Aparajita'
+     access: null | ACCESS_CLASSES id  (persona data class; overrides the group's
+                                        class — see 02z-access.js; new metrics set it)
+     suppress: bool                    (small-cell rule: counts < CONFIG.minCell are
+                                        withheld on persona-restricted views)
      compute(m, ctx) -> number|null    (m = joined model, ctx = filters)
      quality(m, ctx) -> string|null    (data-quality warning for the tile)
      spark(m, ctx)  -> number[]|null   (monthly series, oldest→newest)
@@ -28,6 +32,7 @@ function defineMetric(entry) {
   entry.scorecard = entry.scorecard ?? null;
   entry.caveat = entry.caveat ?? '';
   entry.source = entry.source ?? null;
+  entry.access = entry.access ?? null;
   REGISTRY.push(entry);
   REG_BY_KEY.set(entry.key, entry);
 }
@@ -39,7 +44,7 @@ defineMetric({
   group: 'Workforce', unit: '', decimals: 0, direction: null,
   formulaText: 'Active permanent employees at period end\n= rows in employee master with Employee Class = Permanent,\n  Date of Joining ≤ as-of date, and no exit on or before as-of',
   inputs: [{ dataset: 'employee_master', columns: ['Employee ID', 'Asset', 'Grade Band', 'Employee Class', 'Date of Joining'] }],
-  caveat: 'Contract workforce is tracked separately on the Contract Workforce tab. Exits are netted off when exits.csv is loaded; without it every row counts as active.',
+  caveat: 'Contract workforce is tracked separately on the Contract & Compliance tab. Exits are netted off when exits.csv is loaded; without it every row counts as active.',
   compute: (m, ctx) => Compute.actives(m, ctx, 'Permanent').length,
   spark: (m, ctx) => Compute.monthlySeries(m, ctx, (mm, day) => Compute.activesAt(m, ctx, 'Permanent', day).length),
   drill: (m, ctx) => Compute.drillHeadcount(m, ctx)

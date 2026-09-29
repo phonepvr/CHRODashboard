@@ -58,7 +58,7 @@ defineMetric({
   compute: (m, ctx) => {
     const rows = m.idp.filter((r) => {
       const e = m.empById.get(r.employee_id);
-      return r.idp_flag && r.idp_pct != null && (!e || Compute.empMatch(e, ctx));
+      return r.idp_flag && r.idp_pct != null && (e ? Compute.empMatch(e, ctx) : Compute.isUnscoped(ctx));
     });
     return rows.length ? mean(rows.map((r) => r.idp_pct)) : null;
   },
@@ -97,7 +97,7 @@ defineMetric({
     const rows = m.lms.filter((r) => {
       if (!r.licensed_flag) return false;
       const e = m.empById.get(r.employee_id);
-      return !e || Compute.empMatch(e, ctx);
+      return e ? Compute.empMatch(e, ctx) : Compute.isUnscoped(ctx);
     });
     if (!rows.length) return null;
     return rows.filter((r) => r.last_login != null).length / rows.length * 100;
@@ -113,7 +113,7 @@ defineMetric({
     const rows = m.lms.filter((r) => {
       if (!r.licensed_flag) return false;
       const e = m.empById.get(r.employee_id);
-      return !e || Compute.empMatch(e, ctx);
+      return e ? Compute.empMatch(e, ctx) : Compute.isUnscoped(ctx);
     });
     if (!rows.length) return null;
     return rows.filter((r) => r.last_login != null && (ctx.asOfDay - r.last_login) <= 182).length / rows.length * 100;

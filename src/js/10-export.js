@@ -91,30 +91,36 @@ const Exports = (() => {
 
   /* ---------- data exports (all local Blob downloads) ---------- */
 
+  // Metrics hidden for the persona are OMITTED (not blanked); scope-restricted
+  // ones keep a row with no value and the reason. Drill CSVs are built from the
+  // already-masked drill (App.__lastDrill), so identifiers stay masked.
   function metricsCSV(keys) {
-    const f = App.state.filters;
-    const rows = keys.map((k) => {
+    const ctx = Compute.ctxNow(), persona = Access.label();
+    const rows = keys.filter((k) => Access.canSee(k)).map((k) => {
       const res = Compute.metric(k);
       const e = res.entry;
+      const note = res.restricted ? Access.restrictedReason(res)
+        : res.suppressed ? `Suppressed: fewer than ${CONFIG.minCell} (small-cell rule)`
+        : res.quality || (res.available ? '' : 'inputs not loaded');
       return [
-        e.key, e.label, e.tab, e.group, f.asset, f.band, CONFIG.periodLabel,
+        e.key, e.label, e.tab, e.group, ctx.asset, ctx.band, ctx.segment, CONFIG.periodLabel,
         res.available && res.value != null ? String(Math.round(res.value * 1000) / 1000) : '',
         res.target && res.target.value != null ? String(res.target.value) : '',
-        e.direction || '', e.source || '', res.quality || (res.available ? '' : 'inputs not loaded')
+        e.direction || '', e.source || '', persona, ACCESS_LEVEL_LABEL[res.level || Access.level(e)], note
       ];
     });
     return CSV.serialize(
-      ['Metric Key', 'Metric', 'Tab', 'Group', 'Asset', 'Grade Band', 'Period', 'Value', 'Target', 'Direction', 'Source System', 'Note'],
+      ['Metric Key', 'Metric', 'Tab', 'Group', 'Asset', 'Grade Band', 'Business Segment', 'Period', 'Value', 'Target', 'Direction', 'Source System', 'Persona', 'Access Level', 'Note'],
       rows);
   }
 
   function exportTabCSV() {
     const keys = REGISTRY.filter((e) => e.tab === App.state.activeTab).map((e) => e.key);
-    downloadBlob(`amns-hr-${App.state.activeTab}-metrics.csv`, metricsCSV(keys.length ? keys : REGISTRY.map((e) => e.key)));
+    downloadBlob(`amns-hr-${App.state.activeTab}-metrics${Access.fileSuffix()}.csv`, metricsCSV(keys.length ? keys : REGISTRY.map((e) => e.key)));
   }
 
   function exportAllCSV() {
-    downloadBlob('amns-hr-all-metrics.csv', metricsCSV(REGISTRY.map((e) => e.key)));
+    downloadBlob(`amns-hr-all-metrics${Access.fileSuffix()}.csv`, metricsCSV(REGISTRY.map((e) => e.key)));
   }
 
   function drillCSV(d) {
@@ -189,7 +195,9 @@ const Exports = (() => {
         <button class="btn btn-ghost" data-template-all>Upload templates + data dictionary</button>
       </div>
       <p class="chart-note" style="margin-top:8px">PNG exports render with the system font stack
-      (noted in Methodology). Tile drill-downs offer their own row-level CSV download.</p>` });
+      (noted in Methodology). Tile drill-downs offer their own row-level CSV download.</p>
+      <p class="chart-note">Persona view: ${esc(Access.label())} — metrics restricted for this persona are
+      left out of every export; identifiers follow its PII rule (${esc(Access.PII_LABEL[Access.pii()].toLowerCase())}).</p>` });
   }
 
   return { templateCSV, downloadTemplate, downloadAllTemplates, dataDictionaryCSV, downloadDataDictionary,

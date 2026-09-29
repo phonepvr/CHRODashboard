@@ -101,7 +101,7 @@ defineMetric({
 });
 
 defineMetric({
-  key: 'internal_fill_rate', label: 'Internal fill rate (senior roles)', tab: 'talent',
+  key: 'internal_fill_rate', label: 'Internal fill rate (senior roles)', tab: 'talent', access: 'hiring',
   group: 'Succession', unit: '%', direction: 'higher', scorecard: 'Talent Acquisition',
   formulaText: 'Senior requisitions (AGM+) closed with Closure Mode = Internal\n÷ senior requisitions closed in period × 100',
   inputs: [{ dataset: 'requisitions', columns: ['Requisition ID', 'Grade', 'Closed Date', 'Closure Mode'] }],
@@ -147,7 +147,7 @@ defineMetric({
 });
 
 defineMetric({
-  key: 'req_open_90d', label: 'Senior requisitions open >90 days', tab: 'talent',
+  key: 'req_open_90d', label: 'Senior requisitions open >90 days', tab: 'talent', access: 'hiring',
   group: 'Critical Positions', unit: '', decimals: 0, direction: 'lower', scorecard: 'Talent Acquisition',
   formulaText: 'Open senior requisitions (AGM+) with Open Date >90 days before as-of (count)\nOpen = no Closed Date and Req Status not Dropped/Closed',
   inputs: [{ dataset: 'requisitions', columns: ['Requisition ID', 'Grade', 'Open Date', 'Closed Date'] }],

@@ -5,8 +5,19 @@
 
 const Outlook = (() => {
 
-  function panel({ title, method, assumptions, horizon, body, note = '' }) {
-    return `<div class="card ol-panel">
+  // Persona choke point for projections: a restricted panel keeps its title
+  // but drops body, method, assumptions and note (they quote computed values).
+  function panel({ title, method, assumptions, horizon, body, note = '', access }) {
+    if (Access.cardLevel(access, null) === 'hidden') {
+      return `<div class="card ol-panel is-restricted" data-access="${esc(Access.classOf(access) || 'unclassified')}">
+        <div class="card-title">${esc(title)} <span class="proj-chip">Projected</span></div>
+        <div class="card-sub">${esc(horizon)}</div>
+        ${Access.restrictedChartHTML(ACCESS_CLASSES[Access.classOf(access)]?.label)}
+        <div class="ol-method"><span class="po-k">Method</span>Withheld for this persona
+          <span class="po-k" style="margin-top:4px">Assumptions</span>Withheld for this persona</div>
+      </div>`;
+    }
+    return `<div class="card ol-panel" data-access="${esc(Access.classOf(access) || 'unclassified')}">
       <div class="card-title">${esc(title)} <span class="proj-chip">Projected</span></div>
       <div class="card-sub">${esc(horizon)}</div>
       ${body}
@@ -23,7 +34,7 @@ const Outlook = (() => {
     const valid = actual.filter((v) => v != null && isFinite(v));
     if (valid.length < 6) {
       return panel({
-        title: 'Year-end attrition', horizon: 'to fiscal year end',
+        title: 'Year-end attrition', horizon: 'to fiscal year end', access: 'attr_annualised',
         method: 'Run-rate annualisation of fiscal-YTD exits.',
         assumptions: 'Not drawn: fewer than six months of usable history — the series is too short for a defensible band.',
         body: '<div class="chart-empty">Series too short or noisy to project — more monthly history needed.</div>'
@@ -53,7 +64,7 @@ const Outlook = (() => {
       yFmt: (v) => fmtPct(v, 0)
     });
     return panel({
-      title: 'Year-end attrition', horizon: 'projected to fiscal year end',
+      title: 'Year-end attrition', horizon: 'projected to fiscal year end', access: 'attr_annualised',
       method: `Run-rate annualisation of fiscal-YTD exits: projected FY rate = YTD exits ÷ YTD average headcount × (12 ÷ elapsed months). Currently ${fmtPct(ytd, 1)}.`,
       assumptions: `Exit behaviour continues at the YTD pace. Band = ±1 standard deviation (${fmtPct(sd, 1)}) of the trailing 24 monthly annualised rates.`,
       body: chart
@@ -82,7 +93,7 @@ const Outlook = (() => {
       yFmt: (v) => fmtInt(v)
     });
     return panel({
-      title: 'Superannuation glidepath', horizon: 'next 36 months',
+      title: 'Superannuation glidepath', horizon: 'next 36 months', access: 'near_retirement_pct',
       method: `Deterministic: each permanent employee retires in the month they turn ${CONFIG.retirementAge} (configurable). Monthly counts summed cumulatively.`,
       assumptions: 'None — this panel carries no forecasting assumption; it is arithmetic on dates of birth. Early exits before superannuation would only reduce it.',
       body: chart,
@@ -120,7 +131,7 @@ const Outlook = (() => {
       yFmt: (v) => fmtInt(v)
     });
     return panel({
-      title: 'Headcount roll-forward', horizon: 'next 12 months, selected scope',
+      title: 'Headcount roll-forward', horizon: 'next 12 months, selected scope', access: 'headcount_close',
       method: 'Month by month: current roll + pipeline joins (open requisitions filled at the median time-to-fill pace) − run-rate exits − superannuation retirements.',
       assumptions: `Attrition holds at the YTD run-rate (${fmtPct(ytd, 1)} annualised); ${fmtInt(openReqs.length)} open requisitions fill at the median ${fmtInt(medTTF)}-day pace; no new requisitions are raised.`,
       body: m.has('requisitions') ? chart : '<div class="chart-empty">Needs requisitions.csv for the joins pipeline.</div>'
@@ -131,7 +142,7 @@ const Outlook = (() => {
   function burndownPanel(m, ctx) {
     if (!m.has('requisitions')) {
       return panel({
-        title: 'Vacancy burn-down', horizon: 'until the current openings clear',
+        title: 'Vacancy burn-down', horizon: 'until the current openings clear', access: 'req_open_90d',
         method: 'Open requisitions reduced at the historical closure pace (median time-to-fill).',
         assumptions: 'Not computed — requisitions.csv not loaded.',
         body: '<div class="chart-empty">No data loaded for this panel — needs requisitions.csv.</div>'
@@ -152,7 +163,7 @@ const Outlook = (() => {
       ? Charts.line({ months, series: [{ label: 'Open requisitions', role: 'projected', dashed: true, values: vals }], yFmt: (v) => fmtInt(v) })
       : `<div class="chart-empty">${fmtInt(open.length)} open requisition${open.length === 1 ? '' : 's'} — clears within a month at the current pace.</div>`;
     return panel({
-      title: 'Vacancy burn-down', horizon: 'until current openings clear (max 12 months)',
+      title: 'Vacancy burn-down', horizon: 'until current openings clear (max 12 months)', access: 'req_open_90d',
       method: `Open requisitions (${fmtInt(open.length)}) reduced by the historical closure pace: median time-to-fill ${fmtInt(medTTF)} days → ~${fmtInt(perMonth)} closures/month.`,
       assumptions: 'Closure pace holds; no new requisitions are raised (so this is a lower bound on future open positions).',
       body
@@ -163,7 +174,7 @@ const Outlook = (() => {
   function costPanel(m, ctx) {
     if (!m.has('production_safety')) {
       return panel({
-        title: 'Manpower cost outlook', horizon: 'next 12 months',
+        title: 'Manpower cost outlook', horizon: 'next 12 months', access: 'ecost_pct_revenue',
         method: 'Run-rate employee cost with a compensation-increment slider.',
         assumptions: 'Not computed — production_safety.csv not loaded.',
         body: '<div class="chart-empty">No data loaded for this panel — needs production_safety.csv.</div>'
@@ -172,7 +183,7 @@ const Outlook = (() => {
     const cost = Compute.prodSum(m, ctx, 'employee_cost');
     const annualRunRate = cost != null ? cost * (12 / ctx.periodMonths) : null;
     return panel({
-      title: 'Manpower cost outlook', horizon: 'next 12 months',
+      title: 'Manpower cost outlook', horizon: 'next 12 months', access: 'ecost_pct_revenue',
       method: 'Employee-cost run-rate from the selected period, annualised, with the increment percentage applied from the next cycle. Projected cost = run-rate × (1 + increment%).',
       assumptions: 'Headcount mix stays flat (see the roll-forward panel for the volume view); increment applies to the full base.',
       body: `
@@ -203,11 +214,11 @@ const Outlook = (() => {
       yearsBetween(e.dob, ctx.asOfDay) >= CONFIG.retirementAge - 2).length;
     const rows = [
       ['Early-tenure at high-attrition assets', 'Tenure ≤2 yrs at an asset running >1.5pp above Group attrition', c1],
-      ['Unpromoted Top Talent', 'TT with no promotion in >3 years (or never)', c2],
-      ['Superannuation-adjacent', `Within 2 years of retirement age ${CONFIG.retirementAge}`, c3]
+      ...(Access.canSee('tt_3yr_nopromo') ? [['Unpromoted Top Talent', 'TT with no promotion in >3 years (or never)', c2]] : []),
+      ...(Access.canSee('near_retirement_pct') ? [['Superannuation-adjacent', `Within 2 years of retirement age ${CONFIG.retirementAge}`, c3]] : [])
     ];
     return panel({
-      title: 'Attrition-risk cohorts', horizon: 'current roll, rule-based bands',
+      title: 'Attrition-risk cohorts', horizon: 'current roll, rule-based bands', access: 'attr_annualised',
       method: 'Deterministic rules over the loaded data — each cohort is a transparent filter, listed beside its count.',
       assumptions: 'Reported as COHORT COUNTS ONLY — this dashboard computes no individual risk scores, by design.',
       body: UI.tableHTML(['Cohort', 'Rule', 'Count'], rows.map((r) => [r[0], r[1], fmtInt(r[2])]))
@@ -225,7 +236,7 @@ const Outlook = (() => {
         Every figure on this tab is a projection — marked, drawn dashed, and documented with its
         method and assumptions. Nothing here feeds the actuals tabs or the scorecard.</div>
       <div class="card-grid">
-        ${m.has('exits') ? attritionPanel(m, ctx) : panel({ title: 'Year-end attrition', horizon: '—', method: 'Run-rate annualisation.', assumptions: 'Not computed — exits.csv not loaded.', body: '<div class="chart-empty">Needs exits.csv.</div>' })}
+        ${m.has('exits') ? attritionPanel(m, ctx) : panel({ title: 'Year-end attrition', horizon: '—', access: 'attr_annualised', method: 'Run-rate annualisation.', assumptions: 'Not computed — exits.csv not loaded.', body: '<div class="chart-empty">Needs exits.csv.</div>' })}
         ${glidepathPanel(m, ctx)}
         ${rollForwardPanel(m, ctx)}
         ${burndownPanel(m, ctx)}

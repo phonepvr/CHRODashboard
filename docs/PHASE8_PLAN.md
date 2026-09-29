@@ -134,9 +134,23 @@ Grade-band filter applies to employee-keyed tabs; segment filter applies everywh
    isUnscoped/segOf/orgOf/reqOpen`, `countBy`, `rateBy(m, ctx, (e, day) => key, {klass, pred, order})`,
    `fyStartDay`; `exitsInPeriod(…, includeRetirements)` defaults to excluding retirements.
    Mock absence = 12 months (whole mock load measured ~1.3–1.7 s click-to-paint).
-2. `[ ]` **Core-B (platform)** — grouped nav with all tab ids (stubs), segment selector,
+2. `[x]` **Core-B (platform)** — grouped nav with all tab ids (stubs), segment selector,
    persona framework (`02z-access.js`) + gate/header switcher + enforcement + Access Matrix
    tab, attrition & contract renderers moved to own files.
+   *Landed:* `TAB_GROUPS` → flat `TABS` (ids: fieldmap, overview, scorecard, outlook, managers,
+   positions, movement, absence, talent, performance, lnd, mobility, ta, joining, attrition,
+   diversity, contract, quality, methodology, access); each new feature tab has its own stub file
+   `src/js/tabs/<id>.js` calling `UI.placeholder` — the feature agent replaces that file.
+   `#sel-seg` (Business) drives `filters.segment`; chips `#scope-chip`/`#ft-scope` + print footers.
+   Policy: `ACCESS_CLASSES` (core, talent, perf, hiring, learning, org, attendance, ops, cost,
+   wellbeing; group → class, an entry's `access:'<class>'` wins — **new metrics must set it**,
+   the personas spec fails on unclassified keys), `PERSONAS` (8; scope all|asset|segment|
+   asset+function, tabs, levels, pii), `ALWAYS_TABS` = fieldmap + methodology; Access tab = CHRO
+   only. Choke points: `Compute.metric` (res.restricted 'hidden'|'scope'|'grain', res.level,
+   res.suppressed via `suppress:true`), `Charts.card({infoKey|access})`, `Outlook panel({access})`,
+   `openDrill` + `Access.maskDrill`; feature detail tables use `Access.maskTable(cols, rows)`
+   (null ⇒ withhold) and `Access.cellText(n)` for small cells. Orphan rows (ID not in master) now
+   count only when `Compute.isUnscoped(ctx)` (idp/lms/internal apps/L&D charts).
 3. `[ ]` **Core-C (field mapping)** — mapping engine, mapping step, Field Mapping tab,
    field_map.csv export/import.
 4. `[ ]` **Feature fan-out** (git worktrees, each agent owns only NEW files + one tab file):

@@ -141,6 +141,7 @@ table { border-collapse: collapse; }
 .hdr-title { font-size: 17px; font-weight: 700; white-space: nowrap; }
 .hdr-title .at { color: var(--red); }
 .hdr-actions { margin-left: auto; display: flex; gap: 6px; }
+.hdr-actions .btn { white-space: nowrap; }
 
 .chip {
   display: inline-flex;
@@ -199,11 +200,22 @@ table { border-collapse: collapse; }
 .btn-ghost { color: var(--ink-70); font-weight: 500; }
 .btn-ghost:hover { color: var(--red); }
 
-/* ---------- tabs ---------- */
+/* ---------- tabs (grouped; groups wrap on desktop, scroll on tablet) ---------- */
 .tabbar { border-bottom: var(--hairline); overflow-x: auto; }
-[role="tablist"] { display: flex; gap: 2px; padding: 0 12px; min-width: max-content; }
+[role="tablist"] { display: flex; flex-wrap: wrap; gap: 0 18px; padding: 4px 12px 0; }
+.tabgroup { display: flex; flex-direction: column; }
+.tabgroup-label {
+  padding: 2px 11px 0;
+  font-size: 9.5px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--ink-55);
+  white-space: nowrap;
+}
+.tabgroup-tabs { display: flex; gap: 2px; }
 [role="tab"] {
-  padding: 9px 13px 7px;
+  padding: 3px 11px 7px;
   border: none;
   background: none;
   cursor: pointer;
@@ -562,6 +574,8 @@ td.score-bad .score-pill { background: var(--red); color: var(--white); }
 
 /* ---------- responsive (tablet) ---------- */
 @media (max-width: 900px) {
+  [role="tablist"] { flex-wrap: nowrap; min-width: max-content; }
+  .app-header { flex-wrap: wrap; }
   .gate-actions { grid-template-columns: 1fr; }
   .gate-title { font-size: 32px; }
   .hdr-title { font-size: 15px; }

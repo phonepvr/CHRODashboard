@@ -15,7 +15,11 @@ TabRenderers.quality = (panel) => {
         i.where, i.what])
     : [];
 
-  panel.innerHTML = `
+  // the mockup's DQ is dataset-wide; production must scope it (Access Matrix)
+  const scopeNote = Access.persona().scope === 'all' ? ''
+    : `<div class="empty-note" style="margin-bottom:10px">Data quality is assessed on the whole loaded dataset —
+      it is not narrowed to ${esc(Access.label())}. Production DQ must be scope-aware.</div>`;
+  panel.innerHTML = `${scopeNote}
     <div class="section-head"><h2>Data quality score</h2>
       <span class="sub">computed on the active dataset (${App.state.mode === 'mock' ? 'illustrative' : 'loaded files'})</span></div>
     <div class="tile-grid">

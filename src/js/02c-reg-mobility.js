@@ -10,7 +10,7 @@ function mobAppsInPeriod(m, ctx) {
     const mi = dayToMonthIdx(a.application_date);
     if (mi < ctx.startMonth || mi > ctx.endMonth) return false;
     const r = m.reqById.get(a.requisition_id);
-    return !r || Compute.reqMatch(ctx, r);
+    return r ? Compute.reqMatch(ctx, r) : Compute.isUnscoped(ctx);
   });
 }
 
@@ -79,7 +79,7 @@ defineMetric({
   compute: (m, ctx) => m.apps.filter((a) => {
     if (!['Applied', 'Shortlisted'].includes(a.status)) return false;
     const r = m.reqById.get(a.requisition_id);
-    if (r && !Compute.reqMatch(ctx, r)) return false;
+    if (r ? !Compute.reqMatch(ctx, r) : !Compute.isUnscoped(ctx)) return false;
     const last = a.last_action_date ?? a.application_date;
     return last != null && (ctx.asOfDay - last) > 15;
   }).length,
@@ -87,7 +87,7 @@ defineMetric({
     const rows = m.apps.filter((a) => {
       if (!['Applied', 'Shortlisted'].includes(a.status)) return false;
       const r = m.reqById.get(a.requisition_id);
-      if (r && !Compute.reqMatch(ctx, r)) return false;
+      if (r ? !Compute.reqMatch(ctx, r) : !Compute.isUnscoped(ctx)) return false;
       const last = a.last_action_date ?? a.application_date;
       return last != null && (ctx.asOfDay - last) > 15;
     });

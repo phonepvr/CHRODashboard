@@ -1,5 +1,7 @@
-/* Tile-grid tab renderers with their charts: Talent, L&D, Mobility, Attrition,
-   Diversity, Contract — registry-driven, grouped into sections. */
+/* Tile-grid tab renderers with their charts: Talent, L&D, Mobility, Diversity —
+   registry-driven, grouped into sections. The shared helpers below
+   (renderTilesByGroup, fillSlot, needData) are also used by tabs/attrition.js
+   and tabs/contract.js; renderers run only after every file has loaded. */
 
 function renderTilesByGroup(panel, tabId, opts = {}) {
   const entries = REGISTRY.filter((e) => e.tab === tabId);
@@ -88,14 +90,14 @@ TabRenderers.lnd = (panel) => {
   }));
   fillSlot('lnd', 'Learning intensity', [
     Charts.card({
-      title: 'Classroom vs e-learning person-days', sub: 'trailing 12 months, all cohorts',
+      title: 'Classroom vs e-learning person-days', sub: 'trailing 12 months, all cohorts', access: 'learning',
       body: needData(['learning_events'], () => {
         const from = monthEndDay(ctx.endMonth - 12) + 1;
         let cls = 0, el = 0;
         for (const l of m.learning) {
           if (l.start_date == null || l.start_date < from || l.start_date > ctx.asOfDay) continue;
           const e = m.empById.get(l.employee_id);
-          if (e && !Compute.empMatch(e, ctx)) continue;
+          if (e ? !Compute.empMatch(e, ctx) : !Compute.isUnscoped(ctx)) continue;
           if (l.mode === 'E-learning') el += l.person_days || 0; else cls += l.person_days || 0;
         }
         return Charts.donut({ items: [{ label: 'Classroom', value: Math.round(cls) }, { label: 'E-learning', value: Math.round(el) }], centerLabel: 'person-days' });
@@ -112,7 +114,7 @@ TabRenderers.lnd = (panel) => {
           for (const l of m.learning) {
             if (l.start_date == null || dayToMonthIdx(l.start_date) !== mi) continue;
             const e = m.empById.get(l.employee_id);
-            if (e && !Compute.empMatch(e, ctx)) continue;
+            if (e ? !Compute.empMatch(e, ctx) : !Compute.isUnscoped(ctx)) continue;
             days += l.person_days || 0;
           }
           return days * 12 / hc;
@@ -133,7 +135,7 @@ TabRenderers.lnd = (panel) => {
         for (const l of m.learning) {
           if (l.start_date == null || l.start_date < from || l.start_date > ctx.asOfDay) continue;
           const e = m.empById.get(l.employee_id);
-          if (e && !Compute.empMatch(e, ctx)) continue;
+          if (e ? !Compute.empMatch(e, ctx) : !Compute.isUnscoped(ctx)) continue;
           const k = l.category || '(uncategorised)';
           counts.set(k, (counts.get(k) || 0) + 1);
         }
@@ -167,61 +169,6 @@ TabRenderers.mobility = (panel) => {
   }));
 };
 
-/* ---------------- Attrition ---------------- */
-
-TabRenderers.attrition = (panel) => {
-  renderTilesByGroup(panel, 'attrition', {
-    leadHTML: `<div class="section-head"><h2>Headline</h2>
-        <span class="sub">annualised; superannuation excluded</span></div>
-      <div class="tile-grid">${UI.tileHTML('attr_annualised')}</div>
-      <div class="chart-slot card-grid" id="charts-attrition-headline" style="margin-top:10px"></div>`
-  });
-  const m = Compute.build(), ctx = Compute.ctxNow();
-  fillSlot('attrition', 'headline', [
-    Charts.card({
-      title: 'Monthly attrition by asset (annualised)', sub: 'selected asset in red · Group in black · direct-labelled', infoKey: 'attr_annualised',
-      body: needData(['exits', 'employee_master'], () => {
-        const { months, series } = ChartData.assetLines(ctx, ChartData.attritionAt(m, ctx));
-        return Charts.line({ months, series, yFmt: (v) => fmtPct(v, 0), target: Compute.metric('attr_annualised').target?.value ?? null });
-      })
-    }),
-    Charts.card({
-      title: 'Total vs voluntary attrition', sub: 'monthly annualised — the gap is involuntary/managed exits', infoKey: 'attr_voluntary',
-      body: needData(['exits', 'employee_master'], () => {
-        const months = ChartData.monthsAxis(ctx);
-        return Charts.line({
-          months,
-          series: [
-            { label: 'Total', role: 'group', values: months.map((mi) => Compute.monthAttritionRate(m, ctx, mi)) },
-            { label: 'Voluntary', role: 'focus', values: months.map((mi) => Compute.monthAttritionRateWhere(m, ctx, mi, (x) => x.exit_type === 'Voluntary')) }
-          ],
-          yFmt: (v) => fmtPct(v, 0)
-        });
-      })
-    })
-  ].join(''));
-  fillSlot('attrition', 'Exit quality', Charts.card({
-    title: 'Exits by stated reason', sub: 'period; blank reasons surfaced, not hidden', infoKey: 'attr_regretted',
-    body: needData(['exits', 'employee_master'], () => {
-      const counts = new Map();
-      for (const x of Compute.exitsInPeriod(m, ctx, null)) {
-        const k = x.exit_reason || '(blank)';
-        counts.set(k, (counts.get(k) || 0) + 1);
-      }
-      const items = [...counts.entries()].sort((a, b) => b[1] - a[1]).slice(0, 9)
-        .map(([label, value]) => ({ label, value, role: label === '(blank)' ? 'focus' : undefined, tip: `${label}: ${fmtInt(value)} exits` }));
-      return items.length ? Charts.barH({ items, fmt: (v) => fmtInt(v) }) : '<div class="chart-empty">No exits in the selected period.</div>';
-    })
-  }));
-  fillSlot('attrition', 'Early turnover', Charts.card({
-    title: 'Early turnover (≤1 yr) by asset', sub: 'click a bar to focus that asset', infoKey: 'attr_early_1y',
-    body: needData(['exits', 'employee_master'], () => Charts.barH({
-      items: ChartData.assetBars('attr_early_1y', (v) => fmtPct(v, 1)), fmt: (v) => fmtPct(v, 0),
-      target: Compute.metric('attr_early_1y').target?.value ?? null
-    }))
-  }));
-};
-
 /* ---------------- Diversity ---------------- */
 
 TabRenderers.diversity = (panel) => {
@@ -247,69 +194,11 @@ TabRenderers.diversity = (panel) => {
       }))
     }),
     Charts.card({
-      title: 'Female share by asset', sub: 'click a bar to focus that asset',
+      title: 'Female share by asset', sub: 'click a bar to focus that asset', infoKey: 'female_pct',
       body: needData(['employee_master'], () => Charts.barH({
         items: ChartData.assetBars('female_pct', (v) => fmtPct(v, 1)), fmt: (v) => fmtPct(v, 1),
         target: Compute.metric('female_pct').target?.value ?? null
       }))
     })
   ].join(''));
-};
-
-/* ---------------- Contract ---------------- */
-
-TabRenderers.contract = (panel) => {
-  renderTilesByGroup(panel, 'contract', {
-    leadHTML: `<div class="empty-note" style="margin-bottom:10px">
-      <strong>Separate population.</strong> Only deployment/attendance
-      <span class="tile-src">[SCRUM]</span> and statutory compliance
-      <span class="tile-src">[Aparajita]</span> apply to the contract workforce —
-      talent, L&amp;D and succession metrics deliberately do not. The grade-band
-      filter does not apply here.</div>`
-  });
-  const m = Compute.build(), ctx = Compute.ctxNow();
-  fillSlot('contract', 'Deployment', [
-    Charts.card({
-      title: 'Daily attendance trend', sub: '[SCRUM] man-days present ÷ deployed, monthly', infoKey: 'contract_attendance_pct',
-      body: needData(['contract_attendance'], () => {
-        const { months, series } = ChartData.assetLines(ctx, (asset, mi) => {
-          const c = ChartData.subCtx(ctx, asset);
-          const rows = m.cAtt.filter((r) => r.month === mi && Compute.panelMatch(c, r));
-          const dep = rows.reduce((s, r) => s + (r.mandays_deployed || 0), 0);
-          return dep ? rows.reduce((s, r) => s + (r.mandays_present || 0), 0) / dep * 100 : null;
-        });
-        return Charts.line({ months, series, yFmt: (v) => fmtPct(v, 0), target: Compute.metric('contract_attendance_pct').target?.value ?? null });
-      })
-    }),
-    Charts.card({
-      title: 'Contract headcount by contractor', sub: '[SCRUM] latest month, top 10', infoKey: 'contract_hc',
-      body: needData(['contract_attendance'], () => {
-        const latest = Compute.latestPanelMonth(m.cAtt, ctx);
-        if (latest == null) return '<div class="chart-empty">No contractor rows in the period.</div>';
-        const rows = m.cAtt.filter((r) => r.month === latest && Compute.panelMatch(ctx, r))
-          .sort((a, b) => (b.contract_headcount || 0) - (a.contract_headcount || 0)).slice(0, 10);
-        return Charts.barH({
-          items: rows.map((r) => ({
-            label: r.contractor, value: r.contract_headcount, sub: r.asset,
-            tip: `${r.contractor} @ ${r.asset}: ${fmtInt(r.contract_headcount)} workers\nAttendance ${r.mandays_deployed ? fmtPct(r.mandays_present / r.mandays_deployed * 100, 1) : '—'}`
-          })), fmt: (v) => fmtInt(v)
-        });
-      })
-    })
-  ].join(''));
-  fillSlot('contract', 'Statutory compliance', Charts.card({
-    title: 'Compliance indices', sub: '[Aparajita] period averages vs the composite bar', infoKey: 'contract_compliance_idx',
-    body: needData(['contract_compliance'], () => Charts.barH({
-      items: [
-        ['PF/ESI remittance', 'c_pf_esi'], ['Wage timeliness', 'c_wage'],
-        ['Licence validity', 'c_licence'], ['Safety induction', 'c_induction'],
-        ['Composite', 'contract_compliance_idx']
-      ].map(([label, key]) => {
-        const v = Compute.metric(key).value;
-        return { label, value: v, role: label === 'Composite' ? 'focus' : undefined, tip: `${label}: ${v == null ? '—' : fmtPct(v, 1)}` };
-      }),
-      fmt: (v) => fmtPct(v, 1),
-      target: Compute.metric('contract_compliance_idx').target?.value ?? null
-    }))
-  }));
 };

@@ -215,13 +215,19 @@ const Charts = (() => {
     </svg>`;
   }
 
-  /* ---------- chart card wrapper ---------- */
-  function card({ title, sub = '', body, note = '', infoKey = null }) {
-    return `<div class="card">
+  /* ---------- chart card wrapper ----------
+     Persona choke point for charts: the card's access class is `access` (an
+     ACCESS_CLASSES id) or else its infoKey's class; a card with neither is
+     fail-closed. A restricted card drops its body, so no mark, tooltip or PNG
+     of it ever reaches the page. */
+  function card({ title, sub = '', body, note = '', infoKey = null, access = null }) {
+    const shown = Access.cardLevel(infoKey, access) !== 'hidden';
+    const cls = access || (infoKey && Access.classOf(infoKey)) || '';
+    return `<div class="card${shown ? '' : ' is-restricted'}" data-access="${esc(cls || 'unclassified')}">
       <div class="card-title">${esc(title)}${infoKey ? `<button class="i-btn" data-info="${esc(infoKey)}" aria-expanded="false" aria-label="About ${esc(title)}">i</button>` : ''}</div>
       ${sub ? `<div class="card-sub">${esc(sub)}</div>` : ''}
-      ${body}
-      ${note ? `<div class="chart-note">${esc(note)}</div>` : ''}
+      ${shown ? body : Access.restrictedChartHTML(ACCESS_CLASSES[cls]?.label)}
+      ${shown && note ? `<div class="chart-note">${esc(note)}</div>` : ''}
     </div>`;
   }
 

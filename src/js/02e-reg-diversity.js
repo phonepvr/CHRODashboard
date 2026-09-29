@@ -41,7 +41,7 @@ for (const [key, label, pred] of DIV_BANDS) {
 }
 
 defineMetric({
-  key: 'female_tt', label: 'Female share among TT', tab: 'diversity',
+  key: 'female_tt', label: 'Female share among TT', tab: 'diversity', access: 'talent',
   group: 'Gender in talent pools', unit: '%', direction: 'higher',
   formulaText: 'Female TTs ÷ all TTs × 100',
   inputs: [{ dataset: 'employee_master', columns: ['Employee ID', 'Gender', 'TT Flag'] }],
@@ -57,7 +57,7 @@ defineMetric({
 });
 
 defineMetric({
-  key: 'disability_count', label: 'Employees with disability', tab: 'diversity',
+  key: 'disability_count', label: 'Employees with disability', tab: 'diversity', access: 'wellbeing', suppress: true,
   group: 'Inclusion', unit: '', decimals: 0, direction: null,
   formulaText: 'Active employees with Disability Flag = Y (count)',
   inputs: [{ dataset: 'employee_master', columns: ['Employee ID', 'Disability Flag'] }],

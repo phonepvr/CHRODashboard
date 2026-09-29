@@ -98,9 +98,9 @@ TabRenderers.overview = (panel) => {
       })
     }),
     Charts.card({
-      title: 'Headcount vs 12 months ago', sub: 'permanent roll by asset · click a bar to focus',
+      title: 'Headcount vs 12 months ago', sub: 'permanent roll by asset · click a bar to focus', access: 'core',
       body: needData(['employee_master'], () => Charts.barH({
-        items: [...CONFIG.assets, 'Group'].map((a) => {
+        items: Access.chartScopes().map((a) => {
           const sub = ChartData.subCtx(ctx, a);
           const now = Compute.activesAt(m, sub, 'Permanent', ctx.asOfDay).length;
           const then = Compute.activesAt(m, sub, 'Permanent', monthEndDay(ctx.endMonth - 12)).length;
@@ -109,7 +109,7 @@ TabRenderers.overview = (panel) => {
             label: a, value: now, role: a === ctx.asset ? 'focus' : undefined,
             sub: `${d >= 0 ? '+' : '−'}${fmtInt(Math.abs(d))} vs 12 m ago`,
             tip: `${a}: ${fmtInt(now)} now · ${fmtInt(then)} a year ago (${d >= 0 ? '+' : ''}${fmtInt(d)})`,
-            setAsset: a
+            setAsset: Access.lockedAsset() ? null : a
           };
         }),
         fmt: (v) => fmtInt(v)

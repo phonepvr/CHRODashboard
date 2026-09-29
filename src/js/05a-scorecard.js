@@ -21,14 +21,19 @@ const Scorecard = (() => {
     return Math.max(0, Math.min(200, raw));
   }
 
+  // A persona-restricted row stays in the table as "Restricted" and is left out
+  // of every mean, so totals are over visible metrics only.
   function rowsFor(fn) {
     return REGISTRY.filter((e) => e.scorecard === fn).map((e) => {
       const res = Compute.metric(e.key);
+      if (res.restricted) {
+        return { entry: e, prior: null, current: null, target: null, direction: e.direction || 'higher', score: null, available: false, restricted: res.restricted };
+      }
       const prior = Compute.priorValue(e.key);
       const target = res.target ? res.target.value : null;
       const direction = (res.target && res.target.direction) || e.direction || 'higher';
       const score = res.available ? scoreOf(res.value, target, direction) : null;
-      return { entry: e, prior, current: res.available ? res.value : null, target, direction, score, available: res.available };
+      return { entry: e, prior, current: res.available ? res.value : null, target, direction, score, available: res.available, restricted: null };
     });
   }
 
@@ -53,6 +58,11 @@ const Scorecard = (() => {
   function scoreInfoHTML(key) {
     const e = REG_BY_KEY.get(key);
     const res = Compute.metric(key);
+    if (res.restricted) {
+      return `<h3>Score — ${esc(e.label)}</h3>
+        <div class="po-row"><span class="po-k">Access</span>${esc(Access.describe(e))}</div>
+        <div class="po-row">Score withheld — ${esc(Access.restrictedReason(res))}; excluded from the function total.</div>`;
+    }
     const target = res.target ? res.target.value : null;
     const direction = (res.target && res.target.direction) || e.direction || 'higher';
     const formula = direction === 'lower'

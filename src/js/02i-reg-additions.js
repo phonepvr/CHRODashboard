@@ -261,7 +261,7 @@ defineMetric({
 });
 
 defineMetric({
-  key: 'lnd_cost_per_emp', label: 'L&D cost per employee (12 m)', tab: 'lnd',
+  key: 'lnd_cost_per_emp', label: 'L&D cost per employee (12 m)', tab: 'lnd', access: 'cost',
   group: 'Programme quality', unit: '₹', decimals: 0, direction: 'lower', scorecard: 'L&D',
   formulaText: 'Σ Cost of learning events (trailing 12 m) ÷ active headcount',
   inputs: [{ dataset: 'learning_events', columns: ['Employee ID', 'Start Date', 'Cost'] },
@@ -315,7 +315,7 @@ defineMetric({
 });
 
 defineMetric({
-  key: 'distress_cases', label: 'Distress cases (period)', tab: 'diversity',
+  key: 'distress_cases', label: 'Distress cases (period)', tab: 'diversity', suppress: true,
   group: 'Wellbeing (aggregates)', unit: '', decimals: 0, direction: 'lower',
   formulaText: 'Σ Distress Cases across asset-months in the period',
   inputs: [{ dataset: 'wellbeing', columns: ['Asset', 'Month', 'Distress Cases'] }],

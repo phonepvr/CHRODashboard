@@ -118,14 +118,16 @@ const Compute = (() => {
 
   /* ---------- context ---------- */
 
+  // A persona's locked scope wins over the filters, so a tampered filter can
+  // never widen what the base context computes (D8).
   function ctxNow(overrides) {
     const f = App.state.filters;
     const months = f.periodMonths;
     const base = {
-      asset: f.asset,                        // 'Group' | asset name
-      band: f.band,                          // 'All' | grade band
-      segment: f.segment || 'All',           // 'All' | business segment
-      fn: f.fn || 'All',                     // 'All' | function (persona function scope)
+      asset: Access.lockedAsset() || f.asset,          // 'Group' | asset name
+      band: f.band,                                    // 'All' | grade band
+      segment: Access.lockedSegment() || f.segment || 'All',  // 'All' | business segment
+      fn: Access.lockedFunction() || f.fn || 'All',    // 'All' | function (persona function scope)
       periodMonths: months,
       asOfDay: AS_OF_DAY,
       endMonth: AS_OF_MONTH,
@@ -539,6 +541,16 @@ const Compute = (() => {
   // every ctx field, so override calls on any filter never collide
   const ctxKey = (ctx) => Object.keys(ctx).sort().map((k) => k + '=' + ctx[k]).join('&');
 
+  // Value choke point for personas: a hidden class, an out-of-scope context or
+  // an asset-grain source under a function scope returns no value at all, so
+  // tiles, scorecard, exec summary, exports and print never receive one.
+  function restriction(entry, ctx, level) {
+    if (level === 'hidden') return 'hidden';
+    if (!Access.ctxAllowed(ctx)) return 'scope';
+    if (!inFn(ctx, null) && entry.inputs.some((i) => NO_FUNCTION_DATASETS.has(i.dataset))) return 'grain';
+    return null;
+  }
+
   function metric(key, overrides) {
     const entry = REG_BY_KEY.get(key);
     if (!entry) return { entry: null, value: null, available: false };
@@ -547,8 +559,15 @@ const Compute = (() => {
     // memo key must therefore distinguish the two, or an override call whose ctx
     // equals the base ctx (e.g. the exec summary at the current asset) would cache
     // a spark-less entry that the tile then reads — dropping the trend line.
-    const mk = key + '|' + ctxKey(ctx) + '|' + App.state.dataVersion + (overrides ? '|ov' : '|base');
+    const mk = key + '|' + ctxKey(ctx) + '|' + App.state.dataVersion + (overrides ? '|ov' : '|base') + '|' + Access.token();
     if (memo.has(mk)) return memo.get(mk);
+    const level = Access.level(entry);
+    const restricted = restriction(entry, ctx, level);
+    if (restricted) {
+      const res = { entry, value: null, available: false, restricted, level, quality: null, spark: null, target: null, ctx };
+      memo.set(mk, res);
+      return res;
+    }
     const m = build();
     const available = metricAvailable(entry);
     let value = null, quality = null, spark = null;
@@ -560,7 +579,10 @@ const Compute = (() => {
       if (entry.spark && !overrides) { try { spark = entry.spark(m, ctx); } catch { spark = null; } }
     }
     const target = m.targets.get(key) || null;
-    const res = { entry, value, available, quality, spark, target, ctx };
+    // small-cell rule on special-category counts for persona-restricted views
+    const suppressed = !!entry.suppress && Access.suppressed(value);
+    if (suppressed) { value = null; spark = null; }
+    const res = { entry, value, available, quality, spark, target, ctx, level, suppressed };
     memo.set(mk, res);
     return res;
   }

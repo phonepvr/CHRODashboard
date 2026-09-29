@@ -1,0 +1,114 @@
+/* ============================================================
+   Personas & access (D8/D9) — persona chip, mockup banner,
+   restricted / aggregate-only states, Access Matrix pills.
+   ============================================================ */
+
+.persona-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 9px;
+  border: 1px solid var(--black);
+  background: var(--white);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.persona-chip:hover { border-color: var(--red); color: var(--red); }
+
+.mockup-tag {
+  display: inline-block;
+  padding: 2px 7px;
+  background: var(--yellow);
+  color: var(--black);
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.persona-banner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding: 5px 16px;
+  border-bottom: var(--hairline);
+  border-left: 4px solid var(--yellow);
+  background: var(--ink-05);
+  font-size: 12px;
+  color: var(--ink-70);
+}
+.persona-banner .linklike { padding: 0; border: 0; background: none; cursor: pointer; font-size: inherit; font-weight: 600; text-decoration: underline; }
+.persona-banner .linklike:hover { color: var(--red); }
+
+/* gate picker */
+.gate-persona {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 12px;
+  margin-top: 18px;
+  padding: 12px 14px;
+  border: 1px solid var(--ink-20);
+  background: var(--white);
+}
+.gate-persona .mockup-tag { align-self: center; }
+.gate-persona-desc { flex-basis: 100%; font-size: 12px; color: var(--ink-55); }
+
+/* header switcher */
+.persona-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 8px; margin-top: 10px; }
+.persona-opt {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-content: start;
+  gap: 2px 8px;
+  padding: 8px 10px;
+  border: 1px solid var(--ink-20);
+  cursor: pointer;
+}
+.persona-opt:has(input:checked) { border-color: var(--red); background: var(--red-10); }
+.persona-opt input { grid-row: span 3; align-self: start; accent-color: var(--red); margin-top: 2px; }
+.pm-name { font-weight: 700; font-size: 13px; }
+.pm-desc { font-size: 11.5px; color: var(--ink-70); }
+.pm-meta { font-size: 11px; color: var(--ink-55); }
+.persona-bind { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 12px; }
+
+/* restricted / aggregate-only states */
+.lock-ico { flex: none; }
+.tile.is-restricted {
+  border-top-color: var(--ink-40);
+  background: repeating-linear-gradient(-45deg, var(--ink-05) 0 6px, var(--white) 6px 12px);
+}
+.tile.is-restricted .tile-label { color: var(--ink-55); }
+.tile-value.tile-lock { display: flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 600; color: var(--ink-70); }
+.tile-badge {
+  padding: 0 5px;
+  border: 1px solid var(--ink-40);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--ink-70);
+}
+.chart-restricted { gap: 6px; background: repeating-linear-gradient(-45deg, var(--ink-05) 0 6px, var(--white) 6px 12px); }
+.sc-lock { display: inline-flex; align-items: center; gap: 6px; color: var(--ink-55); font-weight: 600; }
+.exec-foot { margin-top: 8px; font-size: 11.5px; color: var(--ink-55); }
+
+/* Access Matrix */
+.lvl { display: inline-block; padding: 1px 6px; font-size: 11px; font-weight: 700; white-space: nowrap; border: 1px solid transparent; }
+.lvl-full { background: var(--green); color: var(--black); }
+.lvl-agg { border-color: var(--black); color: var(--black); }
+.lvl-hidden { background: var(--ink-10); color: var(--ink-70); }
+.am-table th, .am-table td { white-space: nowrap; }
+.am-table td:nth-child(2) { white-space: normal; }
+.am-current { background: var(--red-10); }
+.am-sub { font-size: 11px; color: var(--ink-55); font-weight: 400; }
+.am-details { border-bottom: var(--hairline); }
+.am-details summary { cursor: pointer; font-weight: 600; padding: 7px 0; }
+.am-list { margin: 0; padding-left: 18px; display: grid; gap: 6px; font-size: 13px; }
+.am-warn { border-color: var(--red); color: var(--status-bad-ink); margin-top: 10px; }
+.am-preview { padding: 3px 9px; font-size: 12px; white-space: nowrap; }

@@ -8,6 +8,14 @@ TabRenderers.scorecard = (panel) => {
     if (!f.rows.length) return '';
     const rows = f.rows.map((r) => {
       const e = r.entry;
+      if (r.restricted) {
+        return `<tr class="sc-restricted" data-key="${e.key}">
+          <td>${esc(e.label)}${e.unit === '%' ? ' (%)' : e.unit ? ` (${e.unit})` : ''}
+            <button class="i-btn i-inline" data-scoreinfo="${e.key}" aria-expanded="false"
+              aria-label="Scoring of ${esc(e.label)}">i</button></td>
+          <td class="num" colspan="4"><span class="sc-lock">${Access.LOCK_SVG} Restricted</span></td>
+        </tr>`;
+      }
       const fmt = (v) => v == null ? '—' : (e.unit === '%' ? fmtNum(v, e.decimals) : e.unit === '₹' ? fmtINR(v) : fmtNum(v, e.decimals));
       const scoreCell = r.score == null
         ? '<td class="num">—</td>'
@@ -33,13 +41,17 @@ TabRenderers.scorecard = (panel) => {
         </tbody></table></div>`;
   };
 
+  const allRows = sc.functions.flatMap((f) => f.rows);
+  const withheld = allRows.filter((r) => r.restricted).length;
+  const scoped = !Access.isDefault();
   panel.innerHTML = `
     <div class="sc-cumulative">
       <div class="sc-cum-stroke" aria-hidden="true"></div>
       <div>
-        <span class="sc-cum-label">Cumulative CHRO score</span>
+        <span class="sc-cum-label">${scoped ? 'Persona-scoped score' : 'Cumulative CHRO score'}</span>
         <span class="sc-cum-value ${Scorecard.scoreClass(sc.cumulative)}">${sc.cumulative == null ? '—' : fmtNum(sc.cumulative, 1)}</span>
-        <span class="sc-cum-note">mean of the six function totals · ${esc(CONFIG.periodLabel)} vs prior period</span>
+        <span class="sc-cum-note">mean of the six function totals · ${esc(CONFIG.periodLabel)} vs prior period${scoped
+          ? ` · ${esc(Access.label())}: ${allRows.length - withheld} of ${allRows.length} metrics visible — totals are means of visible metrics only, not comparable with the CHRO cumulative` : ''}</span>
       </div>
       <div class="sc-legend">
         <span class="score-pill score-good">≥100 on target</span>

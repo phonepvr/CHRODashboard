@@ -133,32 +133,40 @@ const ExecSummary = (() => {
     return R;
   }
 
+  // A rule about a metric the persona may not see is skipped outright (its
+  // values are already withheld by Compute.metric; this keeps the text honest).
   function forAsset(asset) {
     const points = [];
     for (const rule of rules(asset)) {
       const p = rule();
-      if (p) points.push(p);
+      if (p && Access.canSee(p.key)) points.push(p);
     }
     const watches = points.filter((p) => p.type === 'watch');
     const goods = points.filter((p) => p.type === 'good');
     // keep it scannable: max 6 points, watches first, always ≥1 good if one exists
     const chosen = [...watches.slice(0, 4), ...goods.slice(0, 2), ...points.filter((p) => p.type === 'neutral')].slice(0, 6);
+    const seg = Compute.ctxNow().segment;
+    const name = seg && seg !== 'All' ? `${asset} · ${seg}` : asset;
     const verdict =
-      watches.length === 0 ? `${asset}: steady period — no rule-based flags raised.` :
-      watches.length <= 2 ? `${asset}: broadly stable, ${watches.length} area${watches.length > 1 ? 's' : ''} to watch.` :
-      `${asset}: needs attention — ${watches.length} rule-based flags this period.`;
+      watches.length === 0 ? `${name}: steady period — no rule-based flags raised.` :
+      watches.length <= 2 ? `${name}: broadly stable, ${watches.length} area${watches.length > 1 ? 's' : ''} to watch.` :
+      `${name}: needs attention — ${watches.length} rule-based flags this period.`;
     return { verdict, points: chosen, watchCount: watches.length };
   }
 
   function bandHTML() {
-    const asset = App.state.filters.asset;
+    const asset = Compute.ctxNow().asset;
     const s = forAsset(asset);
+    const withheld = REGISTRY.filter((e) => !Access.canSee(e)).length;
     return `<div class="exec-band">
       <p class="exec-verdict">${esc(s.verdict)}</p>
       <ul class="exec-points">
         ${s.points.map((p) => `<li class="${p.type === 'watch' ? 'is-watch' : p.type === 'good' ? 'is-good' : ''}">
-          <button class="linklike" data-jump="${esc(p.key)}">${esc(p.text)}</button></li>`).join('')}
+          ${Access.canSeeTab(REG_BY_KEY.get(p.key)?.tab)
+            ? `<button class="linklike" data-jump="${esc(p.key)}">${esc(p.text)}</button>`
+            : esc(p.text)}</li>`).join('')}
       </ul>
+      ${Access.isDefault() ? '' : `<p class="exec-foot">Built only from metrics visible to ${esc(Access.label())}${withheld ? ` (${withheld} withheld)` : ''}.</p>`}
     </div>`;
   }
 

@@ -22,7 +22,7 @@ defineMetric({
 });
 
 defineMetric({
-  key: 'cost_per_tonne', label: 'Manpower cost per tonne', tab: 'overview',
+  key: 'cost_per_tonne', label: 'Manpower cost per tonne', tab: 'overview', access: 'cost',
   group: 'Productivity, Cost & Safety', unit: '₹', decimals: 0, direction: 'lower', scorecard: 'Financial Indicators',
   formulaText: 'Σ Employee Cost in period ÷ Σ Crude Steel Tonnes in period',
   inputs: [{ dataset: 'production_safety', columns: ['Asset', 'Month', 'Employee Cost', 'Crude Steel Tonnes'] }],
@@ -36,7 +36,7 @@ defineMetric({
 });
 
 defineMetric({
-  key: 'ecost_pct_revenue', label: 'Employee cost as % of revenue', tab: 'overview',
+  key: 'ecost_pct_revenue', label: 'Employee cost as % of revenue', tab: 'overview', access: 'cost',
   group: 'Productivity, Cost & Safety', unit: '%', decimals: 2, direction: 'lower', scorecard: 'Financial Indicators',
   formulaText: 'Σ Employee Cost in period ÷ Σ Revenue in period × 100',
   inputs: [{ dataset: 'production_safety', columns: ['Asset', 'Month', 'Employee Cost', 'Revenue'] }],
