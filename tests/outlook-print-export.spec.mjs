@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
-import { openMock as loadMock, loadMock as loadMockFromGate, loadFiles, FIX } from './helpers.mjs';
+import { openMock as loadMock, loadMock as loadMockFromGate, loadFiles, FIX, packPages } from './helpers.mjs';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const ARTIFACT = 'file://' + join(root, 'dist', 'index.html');
@@ -41,7 +41,7 @@ test.describe('Phase 5 — outlook, print pack, exports', () => {
   test('print pack pre-renders: cover + Group + 4 assets + quality + methodology, footers numbered', async ({ page }) => {
     await loadMock(page);
     // pack builds on idle after load; the appendix is cut into sheet-sized sections
-    await expect.poll(() => page.locator('#print-root .print-page:not(.pp-method-page)').count(), { timeout: 10_000 }).toBe(7);
+    await expect.poll(() => packPages(page), { timeout: 10_000 }).toBe(7);
     const pages = page.locator('#print-root .print-page');
     const total = await pages.count();
     const method = await page.locator('#print-root .pp-method-page').count();
@@ -69,7 +69,7 @@ test.describe('Phase 5 — outlook, print pack, exports', () => {
 
   test('page.pdf() paginates the pack with no tile split across pages', async ({ page }) => {
     await loadMock(page);
-    await expect.poll(() => page.locator('#print-root .print-page:not(.pp-method-page)').count(), { timeout: 10_000 }).toBe(7);
+    await expect.poll(() => packPages(page), { timeout: 10_000 }).toBe(7);
     const sheets = (pdf) => (pdf.toString('latin1').match(/\/Type\s*\/Page[^s]/g) || []).length;
     const pdf = await page.pdf({ format: 'A4', preferCSSPageSize: true });
     expect(pdf.byteLength).toBeGreaterThan(60_000);

@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { readFileSync } from 'node:fs';
-import { loadMock } from './helpers.mjs';
+import { loadMock, packPages } from './helpers.mjs';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const ARTIFACT = 'file://' + join(root, 'dist', 'index.html');
@@ -122,7 +122,7 @@ test.describe('Phase 8 — Core-B: grouped nav, segment filter, personas, access
       expect(await page.locator(`#panel-${t} .is-restricted`).count(), t).toBe(0);
       expect(await page.locator(`#panel-${t} .card:not([data-access]), #panel-${t} .card[data-access="unclassified"]`).count(), t).toBe(0);
     }
-    await expect.poll(() => page.locator('#print-root .print-page:not(.pp-method-page)').count(), { timeout: 10_000 }).toBe(7);
+    await expect.poll(() => packPages(page), { timeout: 10_000 }).toBe(7);
     expect(net).toEqual([]);
   });
 
@@ -166,7 +166,7 @@ test.describe('Phase 8 — Core-B: grouped nav, segment filter, personas, access
     expect(tampered.value).toBeNull();
     expect(tampered.group).toBeGreaterThan(hz);           // Group benchmark allowed
     // print pack: only the own asset
-    await expect.poll(() => page.locator('#print-root .print-page:not(.pp-method-page)').count(), { timeout: 10_000 }).toBe(3);
+    await expect.poll(() => packPages(page), { timeout: 10_000 }).toBe(3);
     const pack = await page.locator('#print-root').textContent();
     expect(pack).toContain('Hazira — Asset HR head summary');
     expect(pack).not.toContain('Paradeep — Asset HR head summary');
@@ -383,7 +383,7 @@ test.describe('Phase 8 — Core-B: grouped nav, segment filter, personas, access
     const net = tripwire(page);
     await loadMockAs(page);
     const groupHc = await page.locator('[data-key="headcount_close"] .tile-value').innerText();
-    await expect.poll(() => page.locator('#print-root .print-page:not(.pp-method-page)').count(), { timeout: 10_000 }).toBe(7);
+    await expect.poll(() => packPages(page), { timeout: 10_000 }).toBe(7);
     // header switcher
     await page.click('#btn-persona');
     await page.check('input[name="pm-persona"][value="asset_head"]');
@@ -398,7 +398,7 @@ test.describe('Phase 8 — Core-B: grouped nav, segment filter, personas, access
     expect(pdHc).not.toBe(groupHc);
     await expect(page.locator('.exec-band').first()).toContainText('Paradeep');
     await expect(page.locator('#tab-access')).toHaveCount(0);
-    await expect.poll(() => page.locator('#print-root .print-page:not(.pp-method-page)').count(), { timeout: 10_000 }).toBe(3);
+    await expect.poll(() => packPages(page), { timeout: 10_000 }).toBe(3);
     await expect(page.locator('#print-root .pp-footer').first()).toContainText('Persona: Asset HR Head · Paradeep');
     // a persona without Overview lands on its own landing tab
     await page.evaluate(() => App.setPersona('hrops'));
@@ -410,7 +410,7 @@ test.describe('Phase 8 — Core-B: grouped nav, segment filter, personas, access
     await expect(page.locator('#sel-asset')).toBeEnabled();
     await expect(page.locator('#sel-asset')).toHaveValue('Group');
     await expect(page.locator('[data-key="headcount_close"] .tile-value')).toHaveText(groupHc);
-    await expect.poll(() => page.locator('#print-root .print-page:not(.pp-method-page)').count(), { timeout: 10_000 }).toBe(7);
+    await expect.poll(() => packPages(page), { timeout: 10_000 }).toBe(7);
     // the persona survives a reset (shown on the gate), and still nothing on the wire / in storage
     await page.evaluate(() => App.setPersona('segment_head', { segment: 'Operations' }));
     await expect(page.locator('#sel-seg')).toBeDisabled();

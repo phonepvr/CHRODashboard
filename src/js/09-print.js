@@ -23,17 +23,32 @@ const PrintPack = (() => {
     'mv_promotion_rate', 'ta_ttf_median', 'absenteeism_pct', 'midyear_review_pct'
   ];
 
+  // One pending build at a time. The idle callback carries a deadline: a
+  // renderer that never reports an idle period (a busy page, some headless
+  // builds) still gets its pack within a second instead of never.
+  let queued = false;
+  let lastError = null;
   function markDirty() {
     dirty = true;
-    const idle = window.requestIdleCallback || ((fn) => setTimeout(fn, 400));
-    idle(() => ensureFresh());
+    if (queued) return;
+    queued = true;
+    const run = () => { queued = false; ensureFresh(); };
+    if (window.requestIdleCallback) window.requestIdleCallback(run, { timeout: 1000 });
+    else setTimeout(run, 400);
   }
 
   function ensureFresh() {
     if (!dirty) return;
     if (App.state.mode === 'gate') { document.getElementById('print-root').innerHTML = ''; dirty = false; return; }
-    build();
-    dirty = false;
+    try {
+      build();
+      dirty = false;
+      lastError = null;
+    } catch (e) {
+      // stays dirty, so the next change or beforeprint retries the build
+      lastError = String((e && e.stack) || e);
+      throw e;
+    }
   }
 
   // compute with a temporary asset scope (band reset to All for print pages)
@@ -214,5 +229,5 @@ const PrintPack = (() => {
 
   window.addEventListener('beforeprint', ensureFresh);
 
-  return { markDirty, ensureFresh, build };
+  return { markDirty, ensureFresh, build, get lastError() { return lastError; } };
 })();

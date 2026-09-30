@@ -14,8 +14,17 @@ export async function confirmMapping(page) {
   await expect(page.locator('#map-step')).toBeHidden();
 }
 
+// surface uncaught page errors in the test log (CI has no other window into them)
+const watched = new WeakSet();
+function watchErrors(page) {
+  if (watched.has(page)) return;
+  watched.add(page);
+  page.on('pageerror', (e) => console.log(`[pageerror] ${e.stack || e.message}`));
+}
+
 /** From the load gate: mock → mapping step (all auto-mapped) → confirm → dashboard. */
 export async function loadMock(page) {
+  watchErrors(page);
   await page.click('#gate-mock');
   await confirmMapping(page);
   await expect(page.locator('#app')).toBeVisible();
@@ -30,7 +39,16 @@ export async function openMock(page) {
 /** BYOF: choose files (gate or header "Load / add files"), confirm the mapping,
  *  land on the dashboard with the load report open. */
 export async function loadFiles(page, paths) {
+  watchErrors(page);
   await page.setInputFiles('#file-input', paths);
   await confirmMapping(page);
   await expect(page.locator('#app')).toBeVisible();
+}
+
+/** Non-appendix print-pack sections — or the pack's build error, so a failed
+ *  poll names the cause instead of reading 0. */
+export function packPages(page) {
+  return page.evaluate(() => PrintPack.lastError
+    ? 'build error: ' + PrintPack.lastError
+    : document.querySelectorAll('#print-root .print-page:not(.pp-method-page)').length);
 }
