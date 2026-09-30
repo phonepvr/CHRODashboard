@@ -242,4 +242,8 @@ Grade-band filter applies to employee-keyed tabs; segment filter applies everywh
    Review record: 5 lenses (privacy/PII, persona enforcement, metric correctness, requirement
    coverage, UX/print) → 44 findings → 33 confirmed by independent refuters → all 33 fixed
    (commits 4b2c80c, b7794db, 824d77e, d1fb6c4). Final gate: 142/142 tests, artifact 962 KB.
-7. `[~]` **Deploy** — push, CI green, Pages live; screenshots; update this file.
+7. `[x]` **Deploy** — push, CI green, Pages live; screenshots; update this file.
+   CI run #14 (bc112c7): build, verify (142/142 on the CI Chromium 151 headless shell) and
+   deploy all green; live at https://phonepvr.github.io/CHRODashboard/. The CI-only print-pack
+   failure (idle callback starved after a mock load on Chromium 151) is fixed by a 1 s deadline
+   on the idle build.
