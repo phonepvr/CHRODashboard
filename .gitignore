@@ -7,3 +7,4 @@ build/*.ttf
 build/*.woff2
 *.log
 .claude/worktrees/
+tmp/

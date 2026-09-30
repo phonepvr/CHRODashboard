@@ -237,6 +237,9 @@ Grade-band filter applies to employee-keyed tabs; segment filter applies everywh
    *Open follow-ups (not blocking):* optional `Dropped Date` on requisitions (drops by period);
    `Charts.line({pointLabels})` / `Charts.column` to replace the local trend / column helpers in
    joining and overview.
-6. `[ ]` **Adversarial review** — privacy/PII, persona consistency (every surface), metric
+6. `[x]` **Adversarial review** — privacy/PII, persona consistency (every surface), metric
    correctness, requirement coverage vs this file → fix loop.
-7. `[ ]` **Deploy** — push, CI green, Pages live; screenshots; update this file.
+   Review record: 5 lenses (privacy/PII, persona enforcement, metric correctness, requirement
+   coverage, UX/print) → 44 findings → 33 confirmed by independent refuters → all 33 fixed
+   (commits 4b2c80c, b7794db, 824d77e, d1fb6c4). Final gate: 142/142 tests, artifact 962 KB.
+7. `[~]` **Deploy** — push, CI green, Pages live; screenshots; update this file.
